@@ -45,20 +45,27 @@ const BACKGROUND_COLOR: Color = (91,99,112,255);
 
 #[derive(Copy, Clone)]
 pub struct Rect {
-    x: usize,
-    y: usize,
-    w: usize,
-    h: usize,
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
 }
 
+#[derive(Clone)]
 pub enum Drawable {
     Rectangle(Rect, Color),
     RectOutlined(Rect, Color),
 }
 
-struct State {
-    gameObjects: Vec<Drawable>
+#[derive(Clone)]
+pub struct State {
+    game_objects: Vec<Drawable>
 }
+
+static mut state: State = State{
+    game_objects: vec![]
+};
+
 
 pub struct KeyState {
     now_keys: [bool; 255],
@@ -66,14 +73,11 @@ pub struct KeyState {
 }
 
 
-
-
 impl Rect {
     pub fn new(x: usize, y: usize, w: usize, h: usize) -> Rect {
         Rect { x, y, w, h }
     }
 }
-
 
 
 // Here's what clear looks like, though we won't use it
@@ -175,6 +179,12 @@ fn window_size_dependent_setup(
                 .unwrap()
         })
         .collect::<Vec<_>>()
+}
+
+pub fn updateGameState(drawables: Vec<Drawable>) {
+    unsafe {
+        state.game_objects = drawables;
+    }
 }
 
 pub fn setup() {
@@ -432,7 +442,7 @@ pub fn setup() {
                             winit::event::KeyboardInput {
                                 // Which serves to filter out only events we actually want
                                 virtual_keycode: Some(keycode),
-                                state,
+                                state: key_press_state,
                                 ..
                             },
                         ..
@@ -440,7 +450,7 @@ pub fn setup() {
                 ..
             } => {
                 // It also binds these handy variable names!
-                match state {
+                match key_press_state {
                     winit::event::ElementState::Pressed => {
                         // VirtualKeycode is an enum with a defined representation
                         keystate.now_keys[keycode as usize] = true;
@@ -521,26 +531,27 @@ pub fn setup() {
                 //     colors[0],
                 // );
                 
-                //let drawables = game.getDrawables()
+                //let drawables = State.game_objects;
                 let test_rect = Rect{x: 0, y: 0, w: 10, h: 10};
                 let test_color = (0,0,255, 255);
-                let drawables = vec![Drawable::Rectangle(test_rect, test_color), Drawable::RectOutlined(test_rect, test_color)];
-                
-                drawables.iter().for_each(|drawable| {
-                    match drawable{
-                        Drawable::Rectangle(r, c) => {
-                            rectangle(&mut fb2d, r.clone(), *c);
+                // let drawables = vec![Drawable::Rectangle(test_rect, test_color), Drawable::RectOutlined(test_rect, test_color)];
+                unsafe {
+                    let current_state = state.clone();
+                    current_state.game_objects.iter().for_each(|drawable| {
+                        match drawable{
+                            Drawable::Rectangle(r, c) => {
+                                rectangle(&mut fb2d, *r, *c);
+                            }
+                            Drawable::RectOutlined(r, c) => {
+                                rect_outlined(&mut fb2d, *r, *c);
+                            }
+                            _ => {
+                                //error out
+                                panic!("not a supported drawable");
+                            }
                         }
-                        Drawable::RectOutlined(r, c) => {
-                            rect_outlined(&mut fb2d, r.clone(), *c);
-                        }
-                        _ => {
-                            //error out
-                            panic!("not a supported drawable");
-                        }
-                    }
-                });
-                
+                    });
+                }
 
 
                 // Now we can copy into our buffer.
