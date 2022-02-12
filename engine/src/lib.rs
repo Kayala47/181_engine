@@ -59,12 +59,18 @@ pub enum Drawable {
 
 #[derive(Clone)]
 pub struct State {
-    game_objects: Vec<Drawable>
+    pub game_objects: Vec<Drawable>
 }
 
+// new function for this
+//arcrefcell?
 static mut state: State = State{
     game_objects: vec![]
 };
+
+pub fn newState() -> State {
+    State { game_objects: vec![] }
+}
 
 
 pub struct KeyState {
