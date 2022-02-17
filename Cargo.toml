@@ -4,7 +4,3 @@ members = [
         "titanium",
         "titanium_towers"
 ]
-
-[dependencies]
-# Look ma, no version number!
-engine = { path = "../engine" }
