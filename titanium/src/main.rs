@@ -1,64 +1,23 @@
-use engine::{setup, draw}
+use engine::{setup, updateGameState, Rect, Drawable, newState};
 
 
 fn main() {
 
-    let mut now_keys = [false; 255];
-    let mut prev_keys = now_keys.clone();
+    let r1 = Rect{x: 10, y: 10, w: 100, h: 100};
+    let r2 = Rect{x: 300, y: 300, w: 30, h: 30};
+    let c1 = (255, 0, 0, 0);
+    let c2 = (0, 255, 0, 0);
+ 
+    let mut new_state = newState();
 
-    let c = (255, 0, 0, 0);
+    let mut game_objects: Vec<Drawable> = vec![];
+    game_objects.push(Drawable::Rectangle(r1, c1));
+    game_objects.push(Drawable::RectOutlined(r2, c2));
 
-    event_loop = setup();
-
-    event_loop.run(move | event, _, control_flow|{
-
-        match event{
-
-            Event::MainEventsCleared => {
-                // We can actually handle events now that we know what they all are.
-                if now_keys[VirtualKeyCode::Escape as usize] {
-                    *control_flow = ControlFlow::Exit;
-                }
-
-                if now_keys[VirtualKeyCode::Down as usize] {
-                    if !now_keys[VirtualKeyCode::LControl as usize] {
-                        ay += accel;
-                    }
-                    // if now_keys[VirtualKeyCode::LShift as usize] {
-                    //     y2 += accel;
-                    // }
-                }
-                if now_keys[VirtualKeyCode::Right as usize] && x < (WIDTH - 1) as f32 {
-                    if !now_keys[VirtualKeyCode::LControl as usize] {
-                        ax += accel;
-                    }
-                    // if now_keys[VirtualKeyCode::LShift as usize] {
-                    //     x2 += accel;
-                    // }
-                }
-
-                if !now_keys[VirtualKeyCode::Right as usize]
-                    && !now_keys[VirtualKeyCode::Down as usize]
-                {
-                    ax = 0.0;
-                    ay = 0.0;
-                }
-
-                if now_keys[VirtualKeyCode::LShift as usize] {
-                    //move to muddy ground
-                    decay = 0.5;
-                    accel = 0.2;
-                } else {
-                    decay = 0.3;
-                    accel = 0.5;
-                }
-            }
-
-            _ => {engine::handle_events(event)}
-        }
-
-
-    });
-
-
+    new_state.game_objects = game_objects;
+    
+    setup();
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    dbg!{"Finished sleeping"};
+    updateGameState(game_objects);
 }

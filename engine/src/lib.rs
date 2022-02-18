@@ -9,7 +9,7 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
-use std::cmp::min;
+
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
@@ -42,6 +42,8 @@ type Color = (u8, u8, u8, u8);
 
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
+const BACKGROUND_COLOR: Color = (91,99,112,255);
+
 
 #[derive(Default, Debug, Clone)]
     struct Vertex {
@@ -75,12 +77,13 @@ pub struct State {
     set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
 }
-#[derive(Clone, Copy)]
+
+#[derive(Copy, Clone)]
 pub struct Rect {
-    x: usize,
-    y: usize,
-    w: usize,
-    h: usize,
+    pub x: usize,
+    pub y: usize,
+    pub w: usize,
+    pub h: usize,
 }
 
 #[derive(Clone)]
@@ -89,11 +92,34 @@ pub enum Drawable {
     RectOutlined(Rect, Color),
 }
 
+#[derive(Clone)]
+pub struct State {
+    pub game_objects: Vec<Drawable>
+}
+
+// new function for this
+//arcrefcell?
+static mut state: State = State{
+    game_objects: vec![]
+};
+
+pub fn newState() -> State {
+    State { game_objects: vec![] }
+}
+
+#[derive(Clone)]
+pub enum Drawable {
+    Rectangle(Rect, Color),
+    RectOutlined(Rect, Color),
+}
+
+
 impl Rect {
     pub fn new(x: usize, y: usize, w: usize, h: usize) -> Rect {
         Rect { x, y, w, h }
     }
 }
+
 
 // Here's what clear looks like, though we won't use it
 #[allow(dead_code)]
@@ -118,16 +144,6 @@ fn rectangle(fb: &mut [Color], r: Rect, c: Color) {
         line(fb, r.x, r.x + r.w, i, c);
     }
 }
-
-// fn make_rects(fb: &mut [Color], instructions: [(usize, Rect, Color)]) {
-//     instructions.iter().for_each(|(num, rect, col)| {
-//         if num == 0 {
-//             rectangle(fb, rect, col);
-//         } else {
-//             rect_outlined(fb, rect, col);
-//         }
-//     })
-// }
 
 #[allow(dead_code)]
 fn rect_outlined(fb: &mut [Color], r: Rect, c: Color) {
@@ -206,8 +222,8 @@ fn window_size_dependent_setup(
         .collect::<Vec<_>>()
 }
 
-
 fn setup() -> State {
+
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
     let event_loop = EventLoop::new();
@@ -259,8 +275,7 @@ fn setup() -> State {
             .unwrap()
     };
 
-    // We now create a buffer that will store the shape of our triangle.
-    
+    // We now create a buffer that will store the shape of our triangl
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
         device.clone(),
@@ -450,27 +465,6 @@ fn setup() -> State {
     return gameState; //return struct here instead
 }
 
-// fn handle_events(event: Event<()>) {
-//     match event {
-//         // NewEvents: Let's start processing events.
-//         Event::NewEvents(_) => {
-//             // Leave now_keys alone, but copy over all changed keys
-//             prev_keys.copy_from_slice(&now_keys);
-//         }
-//         Event::WindowEvent {
-//             event: WindowEvent::CloseRequested,
-//             ..
-//         } => {
-//             *control_flow = ControlFlow::Exit;
-//         }
-//         Event::WindowEvent {
-//             event: WindowEvent::Resized(_),
-//             ..
-//         } => {
-//             recreate_swapchain = true;
-//         }
-//     }
-// }
 
 fn draw(mut state: State) {
     //instead, take a state struct
@@ -552,8 +546,6 @@ fn draw(mut state: State) {
         .end_render_pass()
         .unwrap();
 
-    let command_buffer = builder.build().unwrap();
-
     let future = acquire_future
         .then_execute(state.queue.clone(), command_buffer)
         .unwrap()
@@ -571,6 +563,7 @@ fn draw(mut state: State) {
         Err(e) => {
             println!("Failed to flush future: {:?}", e);
             state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
+
         }
-    }
+    });
 }
