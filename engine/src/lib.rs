@@ -28,6 +28,7 @@ use vulkano::pipeline::graphics::viewport::{Viewport, ViewportState};
 use vulkano::pipeline::{GraphicsPipeline, Pipeline, PipelineBindPoint};
 use vulkano::render_pass::{Framebuffer, RenderPass, Subpass};
 use vulkano::sampler::{Filter, MipmapMode, Sampler, SamplerAddressMode};
+use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{self, AcquireError, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, FlushError, GpuFuture};
 use vulkano::Version;
@@ -42,6 +43,40 @@ type Color = (u8, u8, u8, u8);
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 const BACKGROUND_COLOR: Color = (91,99,112,255);
+
+
+#[derive(Default, Debug, Clone)]
+    struct Vertex {
+        position: [f32; 2],
+        uv: [f32; 2],
+    }
+    vulkano::impl_vertex!(Vertex, position, uv);
+
+
+pub struct State {
+    fb: [(u8,u8,u8,u8);WIDTH * HEIGHT],
+    pub drawables: Vec<Drawable>,
+    prev_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
+    recreate_swapchain: bool,
+    event_loop: EventLoop<()>,
+    fb2d_buffer: Arc<vulkano::buffer::CpuAccessibleBuffer<[(u8,u8,u8,u8)]>>,
+    now_keys: [bool;255],
+    prev_keys: [bool;255], 
+    fb2d_image: std::sync::Arc<vulkano::image::StorageImage>,
+    queue: std::sync::Arc<vulkano::device::Queue>,
+    swapchain: std::sync::Arc<vulkano::swapchain::Swapchain<winit::window::Window>>,
+    viewport: Viewport,
+    framebuffers: Vec<Arc<Framebuffer>>,
+    pipeline: Arc<GraphicsPipeline>,
+    render_pass: Arc<RenderPass>,
+    dimensions: ImageDimensions,
+    vs: Arc<ShaderModule>,
+    fs: Arc<ShaderModule>,
+    surface: std::sync::Arc<vulkano::swapchain::Surface<winit::window::Window>>,
+    device: Arc<vulkano::device::Device>,
+    set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
+    vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
+}
 
 #[derive(Copy, Clone)]
 pub struct Rect {
@@ -72,10 +107,10 @@ pub fn newState() -> State {
     State { game_objects: vec![] }
 }
 
-
-pub struct KeyState {
-    now_keys: [bool; 255],
-    prev_keys: [bool; 255]
+#[derive(Clone)]
+pub enum Drawable {
+    Rectangle(Rect, Color),
+    RectOutlined(Rect, Color),
 }
 
 
@@ -110,7 +145,6 @@ fn rectangle(fb: &mut [Color], r: Rect, c: Color) {
     }
 }
 
-
 #[allow(dead_code)]
 fn rect_outlined(fb: &mut [Color], r: Rect, c: Color) {
     let t = 1;
@@ -126,6 +160,7 @@ fn rect_outlined(fb: &mut [Color], r: Rect, c: Color) {
         line(fb, x + w - t, x + w, y1, c);
     });
 }
+
 
 #[allow(dead_code)]
 fn point(fb: &mut [Color], x: usize, y: usize, c: Color) {
@@ -187,17 +222,7 @@ fn window_size_dependent_setup(
         .collect::<Vec<_>>()
 }
 
-pub fn updateGameState(drawables: Vec<Drawable>) {
-    unsafe {
-        state.game_objects = drawables;
-    }
-}
-
-pub fn setup() {
-    let mut keystate = KeyState {
-        now_keys: [false; 255],
-        prev_keys: [false; 255]
-    };
+fn setup() -> State {
 
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
@@ -250,13 +275,7 @@ pub fn setup() {
             .unwrap()
     };
 
-    // We now create a buffer that will store the shape of our triangle.
-    #[derive(Default, Debug, Clone)]
-    struct Vertex {
-        position: [f32; 2],
-        uv: [f32; 2],
-    }
-    vulkano::impl_vertex!(Vertex, position, uv);
+    // We now create a buffer that will store the shape of our triangl
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
         device.clone(),
@@ -418,245 +437,133 @@ pub fn setup() {
     let mut recreate_swapchain = false;
     let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    event_loop.run(move | event, _, control_flow|{
+    let mut gameState = State{
+        fb: fb2d,
+        drawables: vec![],
+        prev_frame_end: previous_frame_end,
+        recreate_swapchain: recreate_swapchain,
+        event_loop: event_loop,
+        fb2d_buffer:  fb2d_buffer,
+        now_keys: [false;255],
+        prev_keys: [false;255], 
+        fb2d_image: fb2d_image,
+        queue: queue,
+        swapchain: swapchain,
+        viewport: viewport,
+        framebuffers: framebuffers,
+        pipeline: pipeline,
+        render_pass: render_pass,
+        dimensions: dimensions,
+        vs: vs,
+        fs: fs,
+        surface: surface,
+        device: device,
+        set: set,
+        vertex_buffer: vertex_buffer,
+    };
 
-        match event {
+    return gameState; //return struct here instead
+}
 
-            Event::NewEvents(_) => {
-                // Leave now_keys alone, but copy over all changed keys
-                keystate.prev_keys.copy_from_slice(&keystate.now_keys);
+
+fn draw(mut state: State) {
+    //instead, take a state struct
+    {
+        // We need to synchronize here to send new data to the GPU.
+        // We can't send the new framebuffer until the previous frame is done being drawn.
+        // Dropping the future will block until it's done.
+        if let Some(mut fut) = state.prev_frame_end.take() {
+            fut.cleanup_finished();
+        }
+    }
+
+    // First clear the framebuffer...
+    clear(&mut state.fb, (128, 64, 64, 255));
+
+    // make_rects(state.drawables);
+
+    // Now we can copy into our buffer.
+    {
+        let writable_fb = &mut *state.fb2d_buffer.write().unwrap();
+        writable_fb.copy_from_slice(&state.fb); //copy frame buffer into GPU
+    }
+
+    if state.recreate_swapchain {
+        let dimensions: [u32; 2] = state.surface.window().inner_size().into();
+        let (new_swapchain, new_images) = match state.swapchain.recreate().dimensions(dimensions).build()
+        {
+            Ok(r) => r,
+            Err(SwapchainCreationError::UnsupportedDimensions) => return,
+            Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
+        };
+
+        state.swapchain = new_swapchain;
+        state.framebuffers = window_size_dependent_setup(&new_images, state.render_pass.clone(), &mut state.viewport);
+        state.recreate_swapchain = false;
+    }
+    let (image_num, suboptimal, acquire_future) =
+        match swapchain::acquire_next_image(state.swapchain.clone(), None) {
+            Ok(r) => r,
+            Err(AcquireError::OutOfDate) => {
+                state.recreate_swapchain = true;
+                return;
             }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                *control_flow = ControlFlow::Exit;
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                recreate_swapchain = true;
-                // window_width = size.width as f64;
-                // window_height = size.height as f64;
-            }   
-            Event::WindowEvent {
-                // Note this deeply nested pattern match
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            winit::event::KeyboardInput {
-                                // Which serves to filter out only events we actually want
-                                virtual_keycode: Some(keycode),
-                                state: key_press_state,
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            } => {
-                // It also binds these handy variable names!
-                match key_press_state {
-                    winit::event::ElementState::Pressed => {
-                        // VirtualKeycode is an enum with a defined representation
-                        keystate.now_keys[keycode as usize] = true;
-                    }
-                    winit::event::ElementState::Released => {
-                        keystate.now_keys[keycode as usize] = false;
-                    }
-                }
-            }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::CursorMoved {
-                        device_id: _,
-                        position,
-                        ..
-                    },
-                window_id: _,
-            } => {
-                // cursor_x = position.x / window_width;
-                // cursor_y = position.y / window_height;
-            }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::MouseInput {
-                        device_id: _,
-                        state: _,
-                        button,
-                        ..
-                    },
-                window_id: _,
-            } => {
-                // let window_x = (cursor_x * (WIDTH as f64)) as usize;
-                // let window_y = (cursor_y * (HEIGHT as f64)) as usize;
-                // TODO: Use these
-                // TODO: Handle window_width and window_height above
-            }
-            Event::MainEventsCleared => {
-                {
-                    // We need to synchronize here to send new data to the GPU.
-                    // We can't send the new framebuffer until the previous frame is done being drawn.
-                    // Dropping the future will block until it's done.
-                    if let Some(mut fut) = previous_frame_end.take() {
-                        fut.cleanup_finished();
-                    }
-                }
+            Err(e) => panic!("Failed to acquire next image: {:?}", e),
+        };
+    if suboptimal {
+        state.recreate_swapchain = true;
+    }
 
-                // We can actually handle events now that we know what they all are.
-                let shift_enabled = keystate.now_keys[VirtualKeyCode::LShift as usize]
-                    || keystate.now_keys[VirtualKeyCode::RShift as usize];
+    let mut builder = AutoCommandBufferBuilder::primary(
+        state.device.clone(),
+        state.queue.family(),
+        CommandBufferUsage::OneTimeSubmit,
+    )
+    .unwrap();
 
-                if keystate.now_keys[VirtualKeyCode::Escape as usize] {
-                    *control_flow = ControlFlow::Exit;
-                }
-                if keystate.now_keys[VirtualKeyCode::Down as usize] {
-                    // TODO: do something
+    builder
+        // Now copy that framebuffer buffer into the framebuffer image
+        .copy_buffer_to_image(state.fb2d_buffer.clone(), state.fb2d_image.clone())
+        .unwrap()
+        // And resume our regularly scheduled programming
+        .begin_render_pass(
+            state.framebuffers[image_num].clone(),
+            SubpassContents::Inline,
+            std::iter::once(vulkano::format::ClearValue::None),
+        )
+        .unwrap()
+        .set_viewport(0, [state.viewport.clone()])
+        .bind_pipeline_graphics(state.pipeline.clone())
+        .bind_descriptor_sets(
+            PipelineBindPoint::Graphics,
+            state.pipeline.layout().clone(),
+            0,
+            state.set.clone(),
+        )
+        .bind_vertex_buffers(0, state.vertex_buffer.clone())
+        .draw(state.vertex_buffer.len() as u32, 1, 0, 0)
+        .unwrap()
+        .end_render_pass()
+        .unwrap();
 
-                }
-                if keystate.now_keys[VirtualKeyCode::Up as usize] {
-                    // TODO: do something
+    let future = acquire_future
+        .then_execute(state.queue.clone(), command_buffer)
+        .unwrap()
+        .then_swapchain_present(state.queue.clone(), state.swapchain.clone(), image_num)
+        .then_signal_fence_and_flush();
 
-                }
-                if keystate.now_keys[VirtualKeyCode::Left as usize] {
-                    // TODO: do something
+    match future {
+        Ok(future) => {
+            state.prev_frame_end = Some(future.boxed());
+        }
+        Err(FlushError::OutOfDate) => {
+            state.recreate_swapchain = true;
+            state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
+        }
+        Err(e) => {
+            println!("Failed to flush future: {:?}", e);
+            state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
 
-                }
-                if keystate.now_keys[VirtualKeyCode::Right as usize] {
-                     // TODO: do something
-
-                }
-                // It's debatable whether the following code should live here or in the drawing section.
-                // First clear the framebuffer...
-                clear(&mut fb2d, BACKGROUND_COLOR);
-
-                // line_bresenham(
-                //     &mut fb2d,
-                //     (WIDTH / 8, HEIGHT / 8),
-                //     (WIDTH, HEIGHT / 3),
-                //     colors[0],
-                // );
-                
-                //let drawables = State.game_objects;
-                let test_rect = Rect{x: 0, y: 0, w: 10, h: 10};
-                let test_color = (0,0,255, 255);
-                // let drawables = vec![Drawable::Rectangle(test_rect, test_color), Drawable::RectOutlined(test_rect, test_color)];
-                unsafe {
-                    let current_state = state.clone();
-                    current_state.game_objects.iter().for_each(|drawable| {
-                        match drawable{
-                            Drawable::Rectangle(r, c) => {
-                                rectangle(&mut fb2d, *r, *c);
-                            }
-                            Drawable::RectOutlined(r, c) => {
-                                rect_outlined(&mut fb2d, *r, *c);
-                            }
-                            _ => {
-                                //error out
-                                panic!("not a supported drawable");
-                            }
-                        }
-                    });
-                }
-
-
-                // Now we can copy into our buffer.
-                {
-                    let writable_fb = &mut *fb2d_buffer.write().unwrap();
-                    writable_fb.copy_from_slice(&fb2d);
-                }
-                
-                if recreate_swapchain {
-                    let dimensions: [u32; 2] = surface.window().inner_size().into();
-                    let (new_swapchain, new_images) =
-                        match swapchain.recreate().dimensions(dimensions).build() {
-                            Ok(r) => r,
-                            Err(SwapchainCreationError::UnsupportedDimensions) => return,
-                            Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
-                        };
-
-                    swapchain = new_swapchain;
-                    framebuffers = window_size_dependent_setup(
-                        &new_images,
-                        render_pass.clone(),
-                        &mut viewport,
-                    );
-                    recreate_swapchain = false;
-                }
-
-                
-                
-                let (image_num, suboptimal, acquire_future) =
-                    match swapchain::acquire_next_image(swapchain.clone(), None) {
-                        Ok(r) => r,
-                        Err(AcquireError::OutOfDate) => {
-                            recreate_swapchain = true;
-                            return;
-                        }
-                        Err(e) => panic!("Failed to acquire next image: {:?}", e),
-                    };
-
-                
-                if suboptimal {
-                    recreate_swapchain = true;
-                }
-
-                let mut builder = AutoCommandBufferBuilder::primary(
-                    device.clone(),
-                    queue.family(),
-                    CommandBufferUsage::OneTimeSubmit,
-                )
-                .unwrap();
-
-                
-                builder
-                    // Now copy that framebuffer buffer into the framebuffer image
-                    .copy_buffer_to_image(fb2d_buffer.clone(), fb2d_image.clone())
-                    .unwrap()
-                    // And resume our regularly scheduled programming
-                    .begin_render_pass(
-                        framebuffers[image_num].clone(),
-                        SubpassContents::Inline,
-                        std::iter::once(vulkano::format::ClearValue::None),
-                    )
-                    .unwrap()
-                    .set_viewport(0, [viewport.clone()])
-                    .bind_pipeline_graphics(pipeline.clone())
-                    .bind_descriptor_sets(
-                        PipelineBindPoint::Graphics,
-                        pipeline.layout().clone(),
-                        0,
-                        set.clone(),
-                    )
-                    .bind_vertex_buffers(0, vertex_buffer.clone())
-                    .draw(vertex_buffer.len() as u32, 1, 0, 0)
-                    .unwrap()
-                    .end_render_pass()
-                    .unwrap();
-                    
-                let command_buffer = builder.build().unwrap();
-
-                let future = acquire_future
-                    .then_execute(queue.clone(), command_buffer)
-                    .unwrap()
-                    .then_swapchain_present(queue.clone(), swapchain.clone(), image_num)
-                    .then_signal_fence_and_flush();
-                    
-                match future {
-                    Ok(future) => {
-                        previous_frame_end = Some(future.boxed());
-                    }
-                    Err(FlushError::OutOfDate) => {
-                        recreate_swapchain = true;
-                        previous_frame_end = Some(sync::now(device.clone()).boxed());
-                    }
-                    Err(e) => {
-                        println!("Failed to flush future: {:?}", e);
-                        previous_frame_end = Some(sync::now(device.clone()).boxed());
-                    }
-                }
-            }
-            _ => (),
         }
     });
 }
