@@ -54,7 +54,7 @@ const BACKGROUND_COLOR: Color = (91,99,112,255);
 
 
 pub struct State {
-    fb: [(u8,u8,u8,u8);WIDTH * HEIGHT],
+    fb2d: [(u8,u8,u8,u8);WIDTH * HEIGHT],
     pub drawables: Vec<Drawable>,
     prev_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
@@ -91,28 +91,6 @@ pub enum Drawable {
     Rectangle(Rect, Color),
     RectOutlined(Rect, Color),
 }
-
-#[derive(Clone)]
-pub struct State {
-    pub game_objects: Vec<Drawable>
-}
-
-// new function for this
-//arcrefcell?
-static mut state: State = State{
-    game_objects: vec![]
-};
-
-pub fn newState() -> State {
-    State { game_objects: vec![] }
-}
-
-#[derive(Clone)]
-pub enum Drawable {
-    Rectangle(Rect, Color),
-    RectOutlined(Rect, Color),
-}
-
 
 impl Rect {
     pub fn new(x: usize, y: usize, w: usize, h: usize) -> Rect {
@@ -222,7 +200,7 @@ fn window_size_dependent_setup(
         .collect::<Vec<_>>()
 }
 
-fn setup() -> State {
+pub fn setup() -> State {
 
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
@@ -433,40 +411,38 @@ fn setup() -> State {
         depth_range: 0.0..1.0,
     };
 
-    let mut framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
-    let mut recreate_swapchain = false;
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+    let recreate_swapchain = false;
+    let previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    let mut gameState = State{
-        fb: fb2d,
+    State {
+        fb2d,
         drawables: vec![],
         prev_frame_end: previous_frame_end,
-        recreate_swapchain: recreate_swapchain,
-        event_loop: event_loop,
-        fb2d_buffer:  fb2d_buffer,
+        recreate_swapchain,
+        event_loop,
+        fb2d_buffer,
         now_keys: [false;255],
         prev_keys: [false;255], 
-        fb2d_image: fb2d_image,
-        queue: queue,
-        swapchain: swapchain,
-        viewport: viewport,
-        framebuffers: framebuffers,
-        pipeline: pipeline,
-        render_pass: render_pass,
-        dimensions: dimensions,
-        vs: vs,
-        fs: fs,
-        surface: surface,
-        device: device,
-        set: set,
-        vertex_buffer: vertex_buffer,
-    };
-
-    return gameState; //return struct here instead
+        fb2d_image,
+        queue,
+        swapchain,
+        viewport,
+        framebuffers,
+        pipeline,
+        render_pass,
+        dimensions,
+        vs,
+        fs,
+        surface,
+        device,
+        set,
+        vertex_buffer,
+    }
 }
 
 
-fn draw(mut state: State) {
+pub fn draw(mut state: State) {
     //instead, take a state struct
     {
         // We need to synchronize here to send new data to the GPU.
@@ -478,14 +454,14 @@ fn draw(mut state: State) {
     }
 
     // First clear the framebuffer...
-    clear(&mut state.fb, (128, 64, 64, 255));
+    clear(&mut state.fb2d, (128, 64, 64, 255));
 
     // make_rects(state.drawables);
 
     // Now we can copy into our buffer.
     {
         let writable_fb = &mut *state.fb2d_buffer.write().unwrap();
-        writable_fb.copy_from_slice(&state.fb); //copy frame buffer into GPU
+        writable_fb.copy_from_slice(&state.fb2d); //copy frame buffer into GPU
     }
 
     if state.recreate_swapchain {
@@ -546,6 +522,8 @@ fn draw(mut state: State) {
         .end_render_pass()
         .unwrap();
 
+    let command_buffer = builder.build().unwrap();
+
     let future = acquire_future
         .then_execute(state.queue.clone(), command_buffer)
         .unwrap()
@@ -565,5 +543,5 @@ fn draw(mut state: State) {
             state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
 
         }
-    });
+    }
 }
