@@ -33,16 +33,15 @@ use vulkano::swapchain::{self, AcquireError, Swapchain, SwapchainCreationError};
 use vulkano::sync::{self, FlushError, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
-use winit::event::{Event, VirtualKeyCode, WindowEvent};
+pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 // We'll make our Color type an RGBA8888 pixel.
-type Color = (u8, u8, u8, u8);
+pub type Color = (u8, u8, u8, u8);
 
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
-const BACKGROUND_COLOR: Color = (91,99,112,255);
 
 
 #[derive(Default, Debug, Clone)]
@@ -53,12 +52,14 @@ const BACKGROUND_COLOR: Color = (91,99,112,255);
     vulkano::impl_vertex!(Vertex, position, uv);
 
 
+
 pub struct State {
-    fb2d: [(u8,u8,u8,u8);WIDTH * HEIGHT],
+    pub fb2d: [(u8,u8,u8,u8);WIDTH * HEIGHT],
     pub drawables: Vec<Drawable>,
-    prev_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
+    pub bg_color: Color,
+    previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
-    event_loop: EventLoop<()>,
+    pub event_loop: EventLoop<()>,
     fb2d_buffer: Arc<vulkano::buffer::CpuAccessibleBuffer<[(u8,u8,u8,u8)]>>,
     now_keys: [bool;255],
     prev_keys: [bool;255], 
@@ -76,6 +77,10 @@ pub struct State {
     device: Arc<vulkano::device::Device>,
     set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
+}
+
+fn update_state(){
+
 }
 
 #[derive(Copy, Clone)]
@@ -101,7 +106,7 @@ impl Rect {
 
 // Here's what clear looks like, though we won't use it
 #[allow(dead_code)]
-fn clear(fb: &mut [Color], c: Color) {
+pub fn clear(fb: &mut [Color], c: Color) {
     fb.fill(c);
 }
 
@@ -413,12 +418,13 @@ pub fn setup() -> State {
 
     let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
     let recreate_swapchain = false;
-    let previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
 
     State {
         fb2d,
         drawables: vec![],
-        prev_frame_end: previous_frame_end,
+        bg_color: (255,255,255,255),
+        previous_frame_end,
         recreate_swapchain,
         event_loop,
         fb2d_buffer,
@@ -442,19 +448,19 @@ pub fn setup() -> State {
 }
 
 
-pub fn draw(mut state: State) {
+pub fn draw(&state: State) {
     //instead, take a state struct
     {
         // We need to synchronize here to send new data to the GPU.
         // We can't send the new framebuffer until the previous frame is done being drawn.
         // Dropping the future will block until it's done.
-        if let Some(mut fut) = state.prev_frame_end.take() {
+        if let Some(mut fut) = state.previous_frame_end.take() {
             fut.cleanup_finished();
         }
     }
 
     // First clear the framebuffer...
-    clear(&mut state.fb2d, (128, 64, 64, 255));
+    clear(&mut state.fb2d, state.bg_color);
 
     // make_rects(state.drawables);
 
@@ -532,16 +538,38 @@ pub fn draw(mut state: State) {
 
     match future {
         Ok(future) => {
-            state.prev_frame_end = Some(future.boxed());
+            state.previous_frame_end = Some(future.boxed());
         }
         Err(FlushError::OutOfDate) => {
             state.recreate_swapchain = true;
-            state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
+            state.previous_frame_end = Some(sync::now(state.device.clone()).boxed());
         }
         Err(e) => {
             println!("Failed to flush future: {:?}", e);
-            state.prev_frame_end = Some(sync::now(state.device.clone()).boxed());
+            state.previous_frame_end = Some(sync::now(state.device.clone()).boxed());
 
         }
     }
 }
+
+pub fn synchronize_prev_frame_end(mut state: State) {
+    {
+
+        // We need to synchronize here to send new data to the GPU.
+        // We can't send the new framebuffer until the previous frame is done being drawn.
+        // Dropping the future will block until it's done.
+        if let Some(mut fut) = state.previous_frame_end.take() {
+            fut.cleanup_finished();
+        }
+    }
+}
+// pub fn event_loop_run(event: winit::event::Event<()> ) {
+//     // stsuff here
+//     match event {
+//         //sstuff here
+//         _ => {
+            
+//             //stsuff here
+//         }
+//     }
+// }
