@@ -36,6 +36,7 @@ use vulkano_win::VkSurfaceBuild;
 pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
+use rand::Rng;
 
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
@@ -45,12 +46,50 @@ const HEIGHT: usize = 240;
 
 
 #[derive(Default, Debug, Clone)]
-    struct Vertex {
-        position: [f32; 2],
-        uv: [f32; 2],
-    }
-    vulkano::impl_vertex!(Vertex, position, uv);
+struct Vertex {
+    position: [f32; 2],
+    uv: [f32; 2],
+}
+vulkano::impl_vertex!(Vertex, position, uv);
 
+#[derive(Clone)]
+pub struct Card {
+
+}
+
+#[derive(Clone)]
+pub struct Deck {
+    cards: Vec<Card>
+}
+
+impl Deck {
+    pub fn new(cards: Vec<Card>) -> Deck {
+        Deck { cards }
+    }
+
+    pub fn new_empty() -> Deck {
+        Deck { cards: vec![] }
+    }
+
+    pub fn add_card(self: &Deck, card: Card) {
+        self.cards.push(card);
+    }
+
+    pub fn add_cards(self: &Deck, cards: &mut Vec<Card>) {
+        self.cards.append(cards);
+    }
+
+    pub fn shuffle(self: &Deck) {
+        let deck_size = self.cards.len();
+        let random_generator = rand::thread_rng();
+
+        (0..(deck_size - 1)).for_each(|range_min_index| {
+            let next_index = random_generator.gen_range(range_min_index..deck_size);
+            let next_card = self.cards.remove(next_index);
+            self.cards.insert(0, next_card);
+        });
+    }
+}
 
 
 pub struct State {
