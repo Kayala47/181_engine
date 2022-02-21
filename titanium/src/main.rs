@@ -13,8 +13,8 @@ fn main() {
         h: 100,
     };
     let r2 = Rect {
-        x: 300,
-        y: 300,
+        x: 150,
+        y: 150,
         w: 30,
         h: 30,
     };
@@ -80,8 +80,6 @@ fn main() {
                 // }
                 // It's debatable whether the following code should live here or in the drawing section.
                 // First clear the framebuffer...
-
-                dbg!("past main loop");
 
                 let mut game_objects: Vec<Drawable> = vec![];
                 game_objects.push(Drawable::Rectangle(r1, c1));
