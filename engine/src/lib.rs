@@ -40,8 +40,8 @@ use winit::window::{Window, WindowBuilder};
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
 
-const WIDTH: usize = 320;
-const HEIGHT: usize = 240;
+const WIDTH: usize = 800;
+const HEIGHT: usize = 400;
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
