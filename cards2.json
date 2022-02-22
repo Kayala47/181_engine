@@ -1,0 +1,31 @@
+{
+    "len": 2,
+    "deck": [
+        {
+            "name": "Void",
+            "playCost": 2,
+            "health": 2,
+            "defense": 2,
+            "passiveCost": 2,
+            "specialCost": 3,
+            "specialTag": "Prayer of Healing: \n Heal all allies for half their health",
+            "special": "some fx that heals",
+            "attack": 1,
+            "attackTag": "Sacred Flame \n Toss a mote of radiant light at a foe",
+            "specialAttribute": ""
+        },
+        {
+            "name": "Kleitos",
+            "playCost": 3,
+            "health": 2,
+            "defense": 2,
+            "passiveCost": 0,
+            "specialCost": 1,
+            "specialTag": "Action Surge: \n Strike faster and harder",
+            "Special": "Some fx that increases attack",
+            "attack": 3,
+            "attackTag": "Swing with the mighty Wolfblade",
+            "specialAttribute": "Tireless warrior: no upkeep cost"
+        }
+    ]
+}

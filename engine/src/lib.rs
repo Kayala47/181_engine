@@ -9,6 +9,15 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use serde_json;
+use serde::de::DeserializeOwned;
+use serde_json::{Deserializer, Result, Value};
+use std::fmt::format;
+use std::fs::File;
+use std::io::Read;
+use std::mem::drop;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::pool::standard::StandardCommandPoolAlloc;
@@ -36,7 +45,6 @@ use vulkano_win::VkSurfaceBuild;
 pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
-use rand::Rng;
 
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
@@ -51,15 +59,98 @@ struct Vertex {
 }
 vulkano::impl_vertex!(Vertex, position, uv);
 
-
-#[derive(Clone)]
+#[allow(non_camel_case_types)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
+    name: &'static str,
+    playCost: usize,
+    health: usize,
+    defense: usize,
+    passiveCost: usize,
+    specialCost: usize,
+    specialTag: &'static str,
+    special: &'static str, //should be a function somehow
+    attack: usize,
+    attackTag: &'static str,
+    specialAttribute: &'static str,
+}
 
+impl Drop for Card {
+    fn drop(&mut self) {
+        {}
+    }
+}
+
+impl Card {
+    pub fn new(
+        name: &'static str,
+        playCost: usize,
+        health: usize,
+        passiveCost: usize,
+        specialCost: usize,
+        attack: usize,
+        attackTag: &'static str,
+        special: &'static str,
+        specialTag: &'static str,
+        defense: usize,
+        specialAttribute: &'static str,
+    ) -> Card {
+        Card {
+            name,
+            playCost,
+            health,
+            defense,
+            passiveCost,
+            specialCost,
+            specialTag,
+            special,
+            attack,
+            attackTag,
+            specialAttribute,
+        }
+    }
+
+    pub fn take_damage(&mut self, dmg: usize) -> bool {
+        //returns isAlive - false if health is 0
+        let rem_dmg = dmg - self.defense;
+
+        self.health -= rem_dmg;
+
+        self.health != 0
+    }
+
+    pub fn attack(&self, mut other_card: &mut Card) -> bool {
+        //returns isOtherCardAlive
+
+        other_card.take_damage(self.attack)
+    }
+
+    pub fn get_description(&self) -> String {
+        //for rendering the card itself
+        let name = self.name;
+
+        let stats = format!(
+            "HP:{} | AC:{} | Upkeep: {} \n {}",
+            self.health, self.defense, self.passiveCost, self.specialAttribute
+        );
+
+        let attack_block = format!("ATK: {} \n {}", self.attack, self.attackTag);
+
+        let special_block = format!(
+            "Special | Cost: {} \n {}",
+            self.specialCost, self.specialTag
+        );
+
+        format!(
+            "{} \n \n {} \n \n {} \n\n {}",
+            name, stats, attack_block, special_block
+        )
+    }
 }
 
 #[derive(Clone)]
 pub struct Deck {
-    cards: Vec<Card>
+    cards: Vec<Card>,
 }
 
 impl Deck {
@@ -71,17 +162,37 @@ impl Deck {
         Deck { cards: vec![] }
     }
 
-    pub fn add_card(self: &Deck, card: Card) {
+    pub fn add_card(self: &mut Deck, card: Card) {
         self.cards.push(card);
     }
 
-    pub fn add_cards(self: &Deck, cards: &mut Vec<Card>) {
+    pub fn add_cards(self: &mut Deck, cards: &mut Vec<Card>) {
         self.cards.append(cards);
     }
 
-    pub fn shuffle(self: &Deck) {
+    pub fn set_cards(self: &mut Deck, cards: Vec<Card>) {
+        self.cards = cards;
+    }
+
+    pub fn remove_card(self: &mut Deck, index: usize) {
+        self.cards.remove(index);
+    }
+
+    // Removes card from the deck
+    pub fn draw_and_remove(self: &mut Deck) -> Card {
+        self.cards.remove(0)
+    }
+
+    // Places card back in bottom of deck
+    pub fn draw_and_cycle(self: &mut Deck) -> Card {
+        let next_card = self.cards.remove(0);
+        self.cards.push(next_card.clone());
+        return next_card
+    }
+
+    pub fn shuffle(self: &mut Deck) {
         let deck_size = self.cards.len();
-        let random_generator = rand::thread_rng();
+        let mut random_generator = rand::thread_rng();
 
         (0..(deck_size - 1)).for_each(|range_min_index| {
             let next_index = random_generator.gen_range(range_min_index..deck_size);
@@ -91,7 +202,23 @@ impl Deck {
     }
 }
 
+pub fn load_cards_from_file<T: DeserializeOwned>(file_path: &str) -> Vec<Card> {
+    let mut file = File::open(file_path).unwrap();
+    let mut data = String::new();
+    file.read_to_string(&mut data).unwrap();
 
+    let cards = vec![];
+
+    let root: Value = serde_json::from_str(&data).unwrap();
+
+    let str_rep = root.get("deck").unwrap().get(1).unwrap().as_str().unwrap();
+    let c: Card = serde_json::from_str(str_rep).unwrap();
+
+    println!("{}", c.name);
+    // cards.push(c);
+
+    cards
+}
 
 pub struct State {
     pub fb2d: [(u8, u8, u8, u8); WIDTH * HEIGHT],
@@ -397,7 +524,6 @@ pub fn setup() -> State {
     let fs = fs::load(device.clone()).unwrap();
 
     // Here's our (2D drawing) framebuffer.
-    dbg!(WIDTH * HEIGHT);
     // let fb2d_l = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
     // let mut fb2d = vec![fb2d_l];
     let fb2d = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];

@@ -1,0 +1,12 @@
+{
+    "Play cost": 3,
+    "Health": 2,
+    "Defense": 2,
+    "Passive cost": 0,
+    "Special cost": 1,
+    "Special tag": "Action Surge: \n Strike faster and harder",
+    "Special": "Some fx that increases attack",
+    "AttacK": 3,
+    "Attack tag": "Swing with the mighty Wolfblade",
+    "Special Attribute": "Tireless warrior: no upkeep cost"
+}
