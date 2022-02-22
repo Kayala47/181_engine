@@ -9,6 +9,7 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
+use rand::Rng;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::pool::standard::StandardCommandPoolAlloc;
@@ -36,7 +37,6 @@ use vulkano_win::VkSurfaceBuild;
 pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
-use rand::Rng;
 
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
@@ -51,15 +51,12 @@ struct Vertex {
 }
 vulkano::impl_vertex!(Vertex, position, uv);
 
-
 #[derive(Clone)]
-pub struct Card {
-
-}
+pub struct Card {}
 
 #[derive(Clone)]
 pub struct Deck {
-    cards: Vec<Card>
+    cards: Vec<Card>,
 }
 
 impl Deck {
@@ -71,17 +68,17 @@ impl Deck {
         Deck { cards: vec![] }
     }
 
-    pub fn add_card(self: &Deck, card: Card) {
+    pub fn add_card(self: &mut Deck, card: Card) {
         self.cards.push(card);
     }
 
-    pub fn add_cards(self: &Deck, cards: &mut Vec<Card>) {
+    pub fn add_cards(self: &mut Deck, cards: &mut Vec<Card>) {
         self.cards.append(cards);
     }
 
-    pub fn shuffle(self: &Deck) {
+    pub fn shuffle(self: &mut Deck) {
         let deck_size = self.cards.len();
-        let random_generator = rand::thread_rng();
+        let mut random_generator = rand::thread_rng();
 
         (0..(deck_size - 1)).for_each(|range_min_index| {
             let next_index = random_generator.gen_range(range_min_index..deck_size);
@@ -90,8 +87,6 @@ impl Deck {
         });
     }
 }
-
-
 
 pub struct State {
     pub fb2d: [(u8, u8, u8, u8); WIDTH * HEIGHT],
