@@ -58,19 +58,20 @@ struct Vertex {
 }
 vulkano::impl_vertex!(Vertex, position, uv);
 
+#[allow(non_camel_case_types)]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
     name: &'static str,
-    play_cost: usize,
+    playCost: usize,
     health: usize,
-    passive_cost: usize,
-    special_cost: usize,
-    attack: usize,
-    attack_tag: &'static str,
-    special: &'static str, //should be a function somehow
-    special_tag: &'static str,
     defense: usize,
-    special_trait: &'static str,
+    passiveCost: usize,
+    specialCost: usize,
+    special: &'static str, //should be a function somehow
+    specialTag: &'static str,
+    attack: usize,
+    attackTag: &'static str,
+    specialAttribute: &'static str,
 }
 
 impl Drop for Card {
@@ -187,7 +188,7 @@ pub fn load_cards_from_file(file_path: &str) -> Vec<Card> {
 
     let cards = vec![];
 
-    let v: Value = serde_json::from_str(&data).unwrap();
+    let root: Value = serde_json::from_str(&data).unwrap();
     // println!("{}", v["Special tag"]);
 
     println!("{}", v["deck"]);
