@@ -1,0 +1,27 @@
+{
+    "deck": [
+        {
+            "Play cost": 2,
+            "Health": 2,
+            "Defense": 2,
+            "Passive cost": 2,
+            "Special cost": 3,
+            "Special tag": "Prayer of Healing: \n Heal all allies for half their health",
+            "Attack": 1,
+            "Attack tag": "Sacred Flame \n Toss a mote of radiant light at a foe",
+            "Special attribute": ""
+        },
+        {
+            "Play cost": 3,
+            "Health": 2,
+            "Defense": 2,
+            "Passive cost": 0,
+            "Special cost": 1,
+            "Special tag": "Action Surge: \n Strike faster and harder",
+            "Special": "Some fx that increases attack",
+            "AttacK": 3,
+            "Attack tag": "Swing with the mighty Wolfblade",
+            "Special Attribute": "Tireless warrior: no upkeep cost"
+        }
+    ]
+}
