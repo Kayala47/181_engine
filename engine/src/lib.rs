@@ -10,9 +10,9 @@
 // according to those terms.
 
 use rand::Rng;
-use serde_json::{Result, Value};
 use serde::{Deserialize, Serialize};
 use serde_json;
+use serde_json::{Deserializer, Result, Value};
 use std::fmt::format;
 use std::fs::File;
 use std::io::Read;
@@ -185,8 +185,13 @@ pub fn load_cards_from_file(file_path: &str) {
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
 
-    let v: Value = serde_json::from_str(&data).unwrap();
-    println!("{}", v["Special tag"]);
+    // let v: Value = serde_json::from_str(&data).unwrap();
+    // println!("{}", v["Special tag"]);
+    let deseralizer = serde_json::Deserializer::from_str(data);
+    let iterator = deseralizer.into_iter::<serde_json::Value>();
+    for item in iterator {
+        println!("{:?}", item?);
+    }
 }
 
 pub struct State {
