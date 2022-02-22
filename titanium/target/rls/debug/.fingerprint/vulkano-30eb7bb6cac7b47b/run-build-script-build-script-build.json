@@ -1,0 +1,1 @@
+{"rustc":5208427512371702208,"features":"","target":0,"profile":0,"path":0,"deps":[[14783260294405509306,"build_script_build",false,2702163461708447857]],"local":[{"RerunIfChanged":{"output":"debug/build/vulkano-30eb7bb6cac7b47b/output","paths":["vk.xml"]}}],"rustflags":[],"metadata":0,"config":0,"compile_kind":0}

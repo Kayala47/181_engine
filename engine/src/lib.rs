@@ -9,9 +9,9 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
-
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
+use vulkano::command_buffer::pool::standard::StandardCommandPoolAlloc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
 use vulkano::descriptor_set::PersistentDescriptorSet;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
@@ -44,13 +44,13 @@ pub type Color = (u8, u8, u8, u8);
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 
-
 #[derive(Default, Debug, Clone)]
 struct Vertex {
     position: [f32; 2],
     uv: [f32; 2],
 }
 vulkano::impl_vertex!(Vertex, position, uv);
+
 
 #[derive(Clone)]
 pub struct Card {
@@ -92,16 +92,17 @@ impl Deck {
 }
 
 
+
 pub struct State {
-    pub fb2d: [(u8,u8,u8,u8);WIDTH * HEIGHT],
+    pub fb2d: [(u8, u8, u8, u8); WIDTH * HEIGHT],
     pub drawables: Vec<Drawable>,
     pub bg_color: Color,
     previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
     pub event_loop: EventLoop<()>,
-    fb2d_buffer: Arc<vulkano::buffer::CpuAccessibleBuffer<[(u8,u8,u8,u8)]>>,
-    now_keys: [bool;255],
-    prev_keys: [bool;255], 
+    fb2d_buffer: Arc<vulkano::buffer::CpuAccessibleBuffer<[(u8, u8, u8, u8)]>>,
+    now_keys: [bool; 255],
+    prev_keys: [bool; 255],
     fb2d_image: std::sync::Arc<vulkano::image::StorageImage>,
     queue: std::sync::Arc<vulkano::device::Queue>,
     swapchain: std::sync::Arc<vulkano::swapchain::Swapchain<winit::window::Window>>,
@@ -118,9 +119,36 @@ pub struct State {
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
 }
 
-fn update_state(){
-
-}
+// impl Clone for State {
+//     fn clone(&self) -> State {
+//         let prv_frame = self.previous_frame_end.take();
+//         State {
+//             fb2d: self.fb2d,
+//             drawables: vec![],
+//             bg_color: (255, 255, 255, 255),
+//             previous_frame_end: prv_frame,
+//             recreate_swapchain: self.recreate_swapchain.clone(),
+//             event_loop: EventLoop::new(),
+//             fb2d_buffer: self.fb2d_buffer.clone(),
+//             now_keys: [false; 255],
+//             prev_keys: [false; 255],
+//             fb2d_image: self.fb2d_image.clone(),
+//             queue: self.queue.clone(),
+//             swapchain: self.swapchain.clone(),
+//             viewport: self.viewport.clone(),
+//             framebuffers: self.framebuffers.clone(),
+//             pipeline: self.pipeline.clone(),
+//             render_pass: self.render_pass.clone(),
+//             dimensions: self.dimensions.clone(),
+//             vs: self.vs.clone(),
+//             fs: self.fs.clone(),
+//             surface: self.surface.clone(),
+//             device: self.device.clone(),
+//             set: self.set.clone(),
+//             vertex_buffer: self.vertex_buffer.clone(),
+//         }
+//     }
+// }
 
 #[derive(Copy, Clone)]
 pub struct Rect {
@@ -142,6 +170,18 @@ impl Rect {
     }
 }
 
+fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
+    for obj in drawables {
+        match obj {
+            Drawable::Rectangle(r, c) => {
+                rectangle(fb, r, c);
+            }
+            Drawable::RectOutlined(r, c) => {
+                rect_outlined(fb, r, c);
+            }
+        }
+    }
+}
 
 // Here's what clear looks like, though we won't use it
 #[allow(dead_code)]
@@ -182,7 +222,6 @@ fn rect_outlined(fb: &mut [Color], r: Rect, c: Color) {
         line(fb, x + w - t, x + w, y1, c);
     });
 }
-
 
 #[allow(dead_code)]
 fn point(fb: &mut [Color], x: usize, y: usize, c: Color) {
@@ -245,7 +284,6 @@ fn window_size_dependent_setup(
 }
 
 pub fn setup() -> State {
-
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
     let event_loop = EventLoop::new();
@@ -359,7 +397,10 @@ pub fn setup() -> State {
     let fs = fs::load(device.clone()).unwrap();
 
     // Here's our (2D drawing) framebuffer.
-    let mut fb2d = [(128, 64, 64, 255); WIDTH * HEIGHT];
+    dbg!(WIDTH * HEIGHT);
+    // let fb2d_l = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
+    // let mut fb2d = vec![fb2d_l];
+    let fb2d = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
     // We'll work on it locally, and copy it to a GPU buffer every frame.
     // Then on the GPU, we'll copy it into an Image.
     let fb2d_buffer = CpuAccessibleBuffer::from_iter(
@@ -462,13 +503,13 @@ pub fn setup() -> State {
     State {
         fb2d,
         drawables: vec![],
-        bg_color: (255,255,255,255),
+        bg_color: (255, 255, 255, 255),
         previous_frame_end,
         recreate_swapchain,
         event_loop,
         fb2d_buffer,
-        now_keys: [false;255],
-        prev_keys: [false;255], 
+        now_keys: [false; 255],
+        prev_keys: [false; 255],
         fb2d_image,
         queue,
         swapchain,
@@ -486,8 +527,7 @@ pub fn setup() -> State {
     }
 }
 
-
-pub fn draw(&state: State) {
+pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
     //instead, take a state struct
     {
         // We need to synchronize here to send new data to the GPU.
@@ -500,8 +540,11 @@ pub fn draw(&state: State) {
 
     // First clear the framebuffer...
     clear(&mut state.fb2d, state.bg_color);
+    // clear(&mut state.fb2d.as_slice()[0], state.bg_color);
 
-    // make_rects(state.drawables);
+    // here is where we draw!!!
+    draw_objects(&mut state.fb2d, drawables);
+    // draw_objects(&mut state.fb2d.as_slice()[0], drawables);
 
     // Now we can copy into our buffer.
     {
@@ -511,15 +554,19 @@ pub fn draw(&state: State) {
 
     if state.recreate_swapchain {
         let dimensions: [u32; 2] = state.surface.window().inner_size().into();
-        let (new_swapchain, new_images) = match state.swapchain.recreate().dimensions(dimensions).build()
-        {
-            Ok(r) => r,
-            Err(SwapchainCreationError::UnsupportedDimensions) => return,
-            Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
-        };
+        let (new_swapchain, new_images) =
+            match state.swapchain.recreate().dimensions(dimensions).build() {
+                Ok(r) => r,
+                Err(SwapchainCreationError::UnsupportedDimensions) => return,
+                Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
+            };
 
         state.swapchain = new_swapchain;
-        state.framebuffers = window_size_dependent_setup(&new_images, state.render_pass.clone(), &mut state.viewport);
+        state.framebuffers = window_size_dependent_setup(
+            &new_images,
+            state.render_pass.clone(),
+            &mut state.viewport,
+        );
         state.recreate_swapchain = false;
     }
     let (image_num, suboptimal, acquire_future) =
@@ -586,14 +633,12 @@ pub fn draw(&state: State) {
         Err(e) => {
             println!("Failed to flush future: {:?}", e);
             state.previous_frame_end = Some(sync::now(state.device.clone()).boxed());
-
         }
     }
 }
 
 pub fn synchronize_prev_frame_end(mut state: State) {
     {
-
         // We need to synchronize here to send new data to the GPU.
         // We can't send the new framebuffer until the previous frame is done being drawn.
         // Dropping the future will block until it's done.
@@ -602,13 +647,3 @@ pub fn synchronize_prev_frame_end(mut state: State) {
         }
     }
 }
-// pub fn event_loop_run(event: winit::event::Event<()> ) {
-//     // stsuff here
-//     match event {
-//         //sstuff here
-//         _ => {
-            
-//             //stsuff here
-//         }
-//     }
-// }
