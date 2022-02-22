@@ -187,10 +187,10 @@ pub fn load_cards_from_file(file_path: &str) {
 
     // let v: Value = serde_json::from_str(&data).unwrap();
     // println!("{}", v["Special tag"]);
-    let deseralizer = serde_json::Deserializer::from_str(data);
+    let deseralizer = serde_json::Deserializer::from_str(&data);
     let iterator = deseralizer.into_iter::<serde_json::Value>();
     for item in iterator {
-        println!("{:?}", item?);
+        println!("{:?}\n\n\n", item);
     }
 }
 
