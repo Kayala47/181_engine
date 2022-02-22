@@ -1,5 +1,6 @@
 use engine::{
-    clear, draw, setup, synchronize_prev_frame_end, Color, Drawable, Event, Rect, VirtualKeyCode,
+    clear, draw, load_cards_from_file, setup, synchronize_prev_frame_end, Color, Drawable, Event,
+    Rect, VirtualKeyCode,
 };
 use winit::event_loop::EventLoop;
 
@@ -86,6 +87,8 @@ fn main() {
                 game_objects.push(Drawable::RectOutlined(r2, c2));
 
                 draw(&mut state, game_objects);
+
+                load_cards_from_file("../../cards.json")
             }
             _ => (),
         }

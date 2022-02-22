@@ -10,6 +10,12 @@
 // according to those terms.
 
 use rand::Rng;
+use serde::{Result, Value};
+use serde_json;
+use std::fmt::format;
+use std::fs::File;
+use std::io::Read;
+use std::mem::drop;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::pool::standard::StandardCommandPoolAlloc;
@@ -52,7 +58,92 @@ struct Vertex {
 vulkano::impl_vertex!(Vertex, position, uv);
 
 #[derive(Clone)]
-pub struct Card {}
+pub struct Card {
+    name: &'static str,
+    play_cost: usize,
+    health: usize,
+    passive_cost: usize,
+    special_cost: usize,
+    attack: usize,
+    attack_tag: &'static str,
+    special: &'static str, //should be a function somehow
+    special_tag: &'static str,
+    defense: usize,
+    special_trait: &'static str,
+}
+
+impl Drop for Card {
+    fn drop(&mut self) {
+        {}
+    }
+}
+
+impl Card {
+    pub fn new(
+        name: &'static str,
+        play_cost: usize,
+        health: usize,
+        passive_cost: usize,
+        special_cost: usize,
+        attack: usize,
+        attack_tag: &'static str,
+        special: &'static str,
+        special_tag: &'static str,
+        defense: usize,
+        special_trait: &'static str,
+    ) -> Card {
+        Card {
+            name,
+            play_cost,
+            health,
+            passive_cost,
+            special_cost,
+            attack,
+            attack_tag,
+            special,
+            special_tag,
+            defense,
+            special_trait,
+        }
+    }
+
+    pub fn take_damage(&mut self, dmg: usize) -> bool {
+        //returns isAlive - false if health is 0
+        let rem_dmg = dmg - self.defense;
+
+        self.health -= rem_dmg;
+
+        self.health != 0
+    }
+
+    pub fn attack(&self, mut other_card: &mut Card) -> bool {
+        //returns isOtherCardAlive
+
+        other_card.take_damage(self.attack)
+    }
+
+    pub fn get_description(&self) -> String {
+        //for rendering the card itself
+        let name = self.name;
+
+        let stats = format!(
+            "HP:{} | AC:{} | Upkeep: {} \n {}",
+            self.health, self.defense, self.passive_cost, self.special_trait
+        );
+
+        let attack_block = format!("ATK: {} \n {}", self.attack, self.attack_tag);
+
+        let special_block = format!(
+            "Special | Cost: {} \n {}",
+            self.special_cost, self.special_tag
+        );
+
+        format!(
+            "{} \n \n {} \n \n {} \n\n {}",
+            name, stats, attack_block, special_block
+        )
+    }
+}
 
 #[derive(Clone)]
 pub struct Deck {
@@ -86,6 +177,15 @@ impl Deck {
             self.cards.insert(0, next_card);
         });
     }
+}
+
+pub fn load_cards_from_file(file_path: &str) {
+    let mut file = File::open(file_path).unwrap();
+    let mut data = String::new();
+    file.read_to_string(&mut data).unwrap();
+
+    let v: Value = serde_json::from_str(&data).unwrap();
+    println!("{}", v.find_path(&["Void", "Special tag"]).unwrap());
 }
 
 pub struct State {
