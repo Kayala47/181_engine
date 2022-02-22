@@ -10,7 +10,8 @@
 // according to those terms.
 
 use rand::Rng;
-use serde::{Result, Value};
+use serde_json::{Result, Value};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::fmt::format;
 use std::fs::File;
@@ -57,7 +58,7 @@ struct Vertex {
 }
 vulkano::impl_vertex!(Vertex, position, uv);
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
     name: &'static str,
     play_cost: usize,
@@ -185,7 +186,7 @@ pub fn load_cards_from_file(file_path: &str) {
     file.read_to_string(&mut data).unwrap();
 
     let v: Value = serde_json::from_str(&data).unwrap();
-    println!("{}", v.find_path(&["Void", "Special tag"]).unwrap());
+    println!("{}", v["Special tag"]);
 }
 
 pub struct State {
@@ -492,7 +493,6 @@ pub fn setup() -> State {
     let fs = fs::load(device.clone()).unwrap();
 
     // Here's our (2D drawing) framebuffer.
-    dbg!(WIDTH * HEIGHT);
     // let fb2d_l = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
     // let mut fb2d = vec![fb2d_l];
     let fb2d = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
