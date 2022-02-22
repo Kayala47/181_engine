@@ -12,7 +12,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde::de::DeserializeOwned;
 use serde_json::{Deserializer, Result, Value};
 use std::fmt::format;
 use std::fs::File;
@@ -68,8 +67,8 @@ pub struct Card {
     defense: usize,
     passiveCost: usize,
     specialCost: usize,
-    specialTag: &'static str,
     special: &'static str, //should be a function somehow
+    specialTag: &'static str,
     attack: usize,
     attackTag: &'static str,
     specialAttribute: &'static str,
@@ -84,29 +83,29 @@ impl Drop for Card {
 impl Card {
     pub fn new(
         name: &'static str,
-        playCost: usize,
+        play_cost: usize,
         health: usize,
-        passiveCost: usize,
-        specialCost: usize,
+        passive_cost: usize,
+        special_cost: usize,
         attack: usize,
-        attackTag: &'static str,
+        attack_tag: &'static str,
         special: &'static str,
-        specialTag: &'static str,
+        special_tag: &'static str,
         defense: usize,
-        specialAttribute: &'static str,
+        special_trait: &'static str,
     ) -> Card {
         Card {
             name,
-            playCost,
+            play_cost,
             health,
-            defense,
-            passiveCost,
-            specialCost,
-            specialTag,
-            special,
+            passive_cost,
+            special_cost,
             attack,
-            attackTag,
-            specialAttribute,
+            attack_tag,
+            special,
+            special_tag,
+            defense,
+            special_trait,
         }
     }
 
@@ -131,14 +130,14 @@ impl Card {
 
         let stats = format!(
             "HP:{} | AC:{} | Upkeep: {} \n {}",
-            self.health, self.defense, self.passiveCost, self.specialAttribute
+            self.health, self.defense, self.passive_cost, self.special_trait
         );
 
-        let attack_block = format!("ATK: {} \n {}", self.attack, self.attackTag);
+        let attack_block = format!("ATK: {} \n {}", self.attack, self.attack_tag);
 
         let special_block = format!(
             "Special | Cost: {} \n {}",
-            self.specialCost, self.specialTag
+            self.special_cost, self.special_tag
         );
 
         format!(
@@ -202,7 +201,7 @@ impl Deck {
     }
 }
 
-pub fn load_cards_from_file<T: DeserializeOwned>(file_path: &str) -> Vec<Card> {
+pub fn load_cards_from_file(file_path: &str) -> Vec<Card> {
     let mut file = File::open(file_path).unwrap();
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
@@ -210,12 +209,9 @@ pub fn load_cards_from_file<T: DeserializeOwned>(file_path: &str) -> Vec<Card> {
     let cards = vec![];
 
     let root: Value = serde_json::from_str(&data).unwrap();
+    // println!("{}", v["Special tag"]);
 
-    let str_rep = root.get("deck").unwrap().get(1).unwrap().as_str().unwrap();
-    let c: Card = serde_json::from_str(str_rep).unwrap();
-
-    println!("{}", c.name);
-    // cards.push(c);
+    println!("{}", v["deck"]);
 
     cards
 }
