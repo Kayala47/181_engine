@@ -180,18 +180,19 @@ impl Deck {
     }
 }
 
-pub fn load_cards_from_file(file_path: &str) {
+pub fn load_cards_from_file(file_path: &str) -> Vec<Card> {
     let mut file = File::open(file_path).unwrap();
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
 
-    // let v: Value = serde_json::from_str(&data).unwrap();
+    let cards = vec![];
+
+    let v: Value = serde_json::from_str(&data).unwrap();
     // println!("{}", v["Special tag"]);
-    let deseralizer = serde_json::Deserializer::from_str(data);
-    let iterator = deseralizer.into_iter::<serde_json::Value>();
-    for item in iterator {
-        println!("{:?}", item?);
-    }
+
+    println!("{}", v["deck"]);
+
+    cards
 }
 
 pub struct State {
