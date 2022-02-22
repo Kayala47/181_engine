@@ -170,6 +170,26 @@ impl Deck {
         self.cards.append(cards);
     }
 
+    pub fn set_cards(self: &mut Deck, cards: Vec<Card>) {
+        self.cards = cards;
+    }
+
+    pub fn remove_card(self: &mut Deck, index: usize) {
+        self.cards.remove(index);
+    }
+
+    // Removes card from the deck
+    pub fn draw_and_remove(self: &mut Deck) -> Card {
+        self.cards.remove(0)
+    }
+
+    // Places card back in bottom of deck
+    pub fn draw_and_cycle(self: &mut Deck) -> Card {
+        let next_card = self.cards.remove(0);
+        self.cards.push(next_card.clone());
+        return next_card
+    }
+
     pub fn shuffle(self: &mut Deck) {
         let deck_size = self.cards.len();
         let mut random_generator = rand::thread_rng();
