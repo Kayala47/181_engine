@@ -1,6 +1,5 @@
 {
-    "len": 2,
-    "deck": [
+    "cards": [
         {
             "name": "Void",
             "playCost": 2,
@@ -22,7 +21,7 @@
             "passiveCost": 0,
             "specialCost": 1,
             "specialTag": "Action Surge: \n Strike faster and harder",
-            "Special": "Some fx that increases attack",
+            "special": "Some fx that increases attack",
             "attack": 3,
             "attackTag": "Swing with the mighty Wolfblade",
             "specialAttribute": "Tireless warrior: no upkeep cost"
