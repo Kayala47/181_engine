@@ -12,15 +12,10 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use serde::de::DeserializeOwned;
-use serde_json::{Deserializer, Result, Value};
-use std::fmt::format;
 use std::fs::File;
 use std::io::Read;
-use std::mem::drop;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
-use vulkano::command_buffer::pool::standard::StandardCommandPoolAlloc;
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
 use vulkano::descriptor_set::PersistentDescriptorSet;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
@@ -59,20 +54,20 @@ struct Vertex {
 }
 vulkano::impl_vertex!(Vertex, position, uv);
 
-#[allow(non_camel_case_types)]
+#[allow(non_snake_case)]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
-    name: &'static str,
+    name: String,
     playCost: usize,
     health: usize,
     defense: usize,
     passiveCost: usize,
     specialCost: usize,
-    specialTag: &'static str,
-    special: &'static str, //should be a function somehow
+    specialTag: String,
+    special: String, //should be a function somehow
     attack: usize,
-    attackTag: &'static str,
-    specialAttribute: &'static str,
+    attackTag:String,
+    specialAttribute: String,
 }
 
 impl Drop for Card {
@@ -82,34 +77,6 @@ impl Drop for Card {
 }
 
 impl Card {
-    pub fn new(
-        name: &'static str,
-        playCost: usize,
-        health: usize,
-        passiveCost: usize,
-        specialCost: usize,
-        attack: usize,
-        attackTag: &'static str,
-        special: &'static str,
-        specialTag: &'static str,
-        defense: usize,
-        specialAttribute: &'static str,
-    ) -> Card {
-        Card {
-            name,
-            playCost,
-            health,
-            defense,
-            passiveCost,
-            specialCost,
-            specialTag,
-            special,
-            attack,
-            attackTag,
-            specialAttribute,
-        }
-    }
-
     pub fn take_damage(&mut self, dmg: usize) -> bool {
         //returns isAlive - false if health is 0
         let rem_dmg = dmg - self.defense;
@@ -119,7 +86,7 @@ impl Card {
         self.health != 0
     }
 
-    pub fn attack(&self, mut other_card: &mut Card) -> bool {
+    pub fn attack(&self, other_card: &mut Card) -> bool {
         //returns isOtherCardAlive
 
         other_card.take_damage(self.attack)
@@ -127,7 +94,7 @@ impl Card {
 
     pub fn get_description(&self) -> String {
         //for rendering the card itself
-        let name = self.name;
+        let name = &self.name;
 
         let stats = format!(
             "HP:{} | AC:{} | Upkeep: {} \n {}",
@@ -148,7 +115,8 @@ impl Card {
     }
 }
 
-#[derive(Clone)]
+
+#[derive(Clone, Deserialize)]
 pub struct Deck {
     cards: Vec<Card>,
 }
@@ -187,7 +155,7 @@ impl Deck {
     pub fn draw_and_cycle(self: &mut Deck) -> Card {
         let next_card = self.cards.remove(0);
         self.cards.push(next_card.clone());
-        return next_card
+        next_card
     }
 
     pub fn shuffle(self: &mut Deck) {
@@ -202,22 +170,21 @@ impl Deck {
     }
 }
 
-pub fn load_cards_from_file<T: DeserializeOwned>(file_path: &str) -> Vec<Card> {
+pub fn load_cards_from_file(file_path: &str) -> Deck {
     let mut file = File::open(file_path).unwrap();
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
 
-    let cards = vec![];
+    // let deckf: DeckFile = serde_json::from_str(&data).unwrap();
+    serde_json::from_str::<Deck>(&data).unwrap()
 
-    let root: Value = serde_json::from_str(&data).unwrap();
+    // let str_rep = root.get("deck").unwrap().get(1).unwrap().as_str().unwrap();
+    // let c: Card = serde_json::from_str(str_rep).unwrap();
 
-    let str_rep = root.get("deck").unwrap().get(1).unwrap().as_str().unwrap();
-    let c: Card = serde_json::from_str(str_rep).unwrap();
-
-    println!("{}", c.name);
+    // println!("{}", deckf.deck.cards[0].name);
+    // println!("{}", deck.cards[0].name);
     // cards.push(c);
 
-    cards
 }
 
 pub struct State {
@@ -246,36 +213,6 @@ pub struct State {
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
 }
 
-// impl Clone for State {
-//     fn clone(&self) -> State {
-//         let prv_frame = self.previous_frame_end.take();
-//         State {
-//             fb2d: self.fb2d,
-//             drawables: vec![],
-//             bg_color: (255, 255, 255, 255),
-//             previous_frame_end: prv_frame,
-//             recreate_swapchain: self.recreate_swapchain.clone(),
-//             event_loop: EventLoop::new(),
-//             fb2d_buffer: self.fb2d_buffer.clone(),
-//             now_keys: [false; 255],
-//             prev_keys: [false; 255],
-//             fb2d_image: self.fb2d_image.clone(),
-//             queue: self.queue.clone(),
-//             swapchain: self.swapchain.clone(),
-//             viewport: self.viewport.clone(),
-//             framebuffers: self.framebuffers.clone(),
-//             pipeline: self.pipeline.clone(),
-//             render_pass: self.render_pass.clone(),
-//             dimensions: self.dimensions.clone(),
-//             vs: self.vs.clone(),
-//             fs: self.fs.clone(),
-//             surface: self.surface.clone(),
-//             device: self.device.clone(),
-//             set: self.set.clone(),
-//             vertex_buffer: self.vertex_buffer.clone(),
-//         }
-//     }
-// }
 
 #[derive(Copy, Clone)]
 pub struct Rect {
@@ -624,7 +561,7 @@ pub fn setup() -> State {
 
     let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
     let recreate_swapchain = false;
-    let mut previous_frame_end = Some(sync::now(device.clone()).boxed());
+    let previous_frame_end = Some(sync::now(device.clone()).boxed());
 
     State {
         fb2d,
