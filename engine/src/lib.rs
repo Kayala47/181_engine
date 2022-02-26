@@ -195,8 +195,8 @@ pub struct State {
     recreate_swapchain: bool,
     pub event_loop: EventLoop<()>,
     fb2d_buffer: Arc<vulkano::buffer::CpuAccessibleBuffer<[(u8, u8, u8, u8)]>>,
-    now_keys: [bool; 255],
-    prev_keys: [bool; 255],
+    pub now_keys: [bool; 255],
+    pub prev_keys: [bool; 255],
     fb2d_image: std::sync::Arc<vulkano::image::StorageImage>,
     queue: std::sync::Arc<vulkano::device::Queue>,
     swapchain: std::sync::Arc<vulkano::swapchain::Swapchain<winit::window::Window>>,
@@ -211,6 +211,11 @@ pub struct State {
     device: Arc<vulkano::device::Device>,
     set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
+    window_width: f64,
+    window_height: f64,
+    pub left_mouse_down: bool,
+    pub prev_left_mouse_down: bool,
+    pub mouse_coords: (usize, usize)
 }
 
 
@@ -329,12 +334,12 @@ fn line_bresenham(
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
-    viewport: &mut Viewport,
-) -> Vec<Arc<Framebuffer>> {
+    viewport: &mut Viewport) -> (Vec<Arc<Framebuffer>>,(f64,f64)) {
     let dimensions = images[0].dimensions().width_height();
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
-
-    images
+    let mut window_width = dimensions[0].into();
+    let mut window_height = dimensions[1].into();
+    (images
         .iter()
         .map(|image| {
             let view = ImageView::new(image.clone()).unwrap();
@@ -344,7 +349,7 @@ fn window_size_dependent_setup(
                 .build()
                 .unwrap()
         })
-        .collect::<Vec<_>>()
+        .collect::<Vec<_>>(), (window_width, window_height))
 }
 
 pub fn setup() -> State {
@@ -559,7 +564,7 @@ pub fn setup() -> State {
         depth_range: 0.0..1.0,
     };
 
-    let framebuffers = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+    let (framebuffers,(window_width, window_height)) = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
     let recreate_swapchain = false;
     let previous_frame_end = Some(sync::now(device.clone()).boxed());
 
@@ -587,6 +592,11 @@ pub fn setup() -> State {
         device,
         set,
         vertex_buffer,
+        window_width,
+        window_height,
+        left_mouse_down: false,
+        prev_left_mouse_down: false,
+        mouse_coords: (WIDTH + 1, HEIGHT + 1)
     }
 }
 
@@ -625,11 +635,16 @@ pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
             };
 
         state.swapchain = new_swapchain;
-        state.framebuffers = window_size_dependent_setup(
+        let setup_result = window_size_dependent_setup(
             &new_images,
             state.render_pass.clone(),
             &mut state.viewport,
         );
+
+        state.framebuffers = setup_result.0;
+        state.window_width = setup_result.1.0;
+        state.window_height = setup_result.1.1;
+        
         state.recreate_swapchain = false;
     }
     let (image_num, suboptimal, acquire_future) =
@@ -700,7 +715,7 @@ pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
     }
 }
 
-pub fn synchronize_prev_frame_end(mut state: State) {
+pub fn synchronize_prev_frame_end(state: &mut State) {
     {
         // We need to synchronize here to send new data to the GPU.
         // We can't send the new framebuffer until the previous frame is done being drawn.
@@ -708,5 +723,83 @@ pub fn synchronize_prev_frame_end(mut state: State) {
         if let Some(mut fut) = state.previous_frame_end.take() {
             fut.cleanup_finished();
         }
+    }
+}
+
+pub fn handle_winit_event(event: winit::event::Event<()>, control_flow: &mut winit::event_loop::ControlFlow, state: &mut State) {
+    match event {
+        Event::WindowEvent {
+            event: WindowEvent::CloseRequested,
+            ..
+        } => {
+            *control_flow = ControlFlow::Exit;
+        }
+        Event::WindowEvent {
+            event: WindowEvent::Resized(_),
+            ..
+        } => {
+            state.recreate_swapchain = true;
+        }
+        // NewEvents: Let's start processing events.
+        Event::NewEvents(_) => {
+            // Leave now_keys alone, but copy over all changed keys
+            state.prev_keys.copy_from_slice(&state.now_keys);
+            state.prev_left_mouse_down = state.left_mouse_down;
+        }
+        // WindowEvent->KeyboardInput: Keyboard input!
+        Event::WindowEvent {
+            // Note this deeply nested pattern match
+            event:
+                WindowEvent::KeyboardInput {
+                    input:
+                        winit::event::KeyboardInput {
+                            // Which serves to filter out only events we actually want
+                            virtual_keycode: Some(keycode),
+                            state: key_state,
+                            ..
+                        },
+                    ..
+                },
+            ..
+        } => {
+            // It also binds these handy variable names!
+            match key_state {
+                winit::event::ElementState::Pressed => {
+                    // VirtualKeycode is an enum with a defined representation
+                    state.now_keys[keycode as usize] = true;
+                }
+                winit::event::ElementState::Released => {
+                    state.now_keys[keycode as usize] = false;
+                }
+            }
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::CursorMoved {
+                    device_id: _,
+                    position,
+                    ..
+                },
+            window_id: _,
+        } => {
+            let cursor_x = position.x / state.window_width;
+            let cursor_y = position.y / state.window_height;
+            state.mouse_coords = ((cursor_x * HEIGHT as f64) as usize, (cursor_y * WIDTH as f64) as usize);
+        }
+        Event::WindowEvent {
+            event:
+                WindowEvent::MouseInput {
+                    device_id: _,
+                    state: button_state,
+                    button,
+                    ..
+                },
+            window_id: _,
+        } => {
+            if button == winit::event::MouseButton::Left {
+                state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
+            }
+        },
+        _ => {}
     }
 }

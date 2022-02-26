@@ -1,6 +1,6 @@
 use engine::{
-    clear, draw, load_cards_from_file, setup, synchronize_prev_frame_end, Color, Drawable, Event,
-    Rect, VirtualKeyCode,
+    clear, draw, handle_winit_event, load_cards_from_file, setup, synchronize_prev_frame_end,
+    Color, Drawable, Event, Rect, VirtualKeyCode,
 };
 use winit::event_loop::EventLoop;
 
@@ -27,70 +27,75 @@ fn main() {
     let event_loop = EventLoop::new();
 
     event_loop.run(move |event, _, control_flow| {
-        // event_loop_run(event);
+        if event == Event::MainEventsCleared {
+            synchronize_prev_frame_end(&mut state);
 
-        match event {
-            Event::MainEventsCleared => {
-                // synchronize_prev_frame_end(state);
-                // // We can actually handle events now that we know what they all are.
-                // let shift_enabled = now_keys[VirtualKeyCode::LShift as usize]
-                //     || now_keys[VirtualKeyCode::RShift as usize];
+            // if state.left_mouse_down {
+            //     println!{"mouse is down"}
+            // }
 
-                // if now_keys[VirtualKeyCode::Escape as usize] {
-                //     *control_flow = ControlFlow::Exit;
-                // }
-                // if now_keys[VirtualKeyCode::Down as usize] {
-                //     if shift_enabled {
-                //         y = if y + w < HEIGHT - 1 {
-                //             y + movement_speed
-                //         } else {
-                //             y
-                //         };
-                //     } else {
-                //         color = if color == 0 {
-                //             colors.len() - 1
-                //         } else {
-                //             color - 1
-                //         };
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Up as usize] {
-                //     if shift_enabled {
-                //         y = if y > 0 { y - movement_speed } else { y };
-                //     } else {
-                //         color = if color == 0 {
-                //             colors.len() - 1
-                //         } else {
-                //             color - 1
-                //         };
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Left as usize] && w > 0 {
-                //     if shift_enabled {
-                //         x = if x > 0 { x - 1 } else { x };
-                //     } else {
-                //         w -= movement_speed;
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Right as usize] && w < WIDTH - 1 {
-                //     if shift_enabled {
-                //         x = if x + w < WIDTH - 1 { x + 1 } else { x };
-                //     } else {
-                //         w += movement_speed;
-                //     }
-                // }
-                // It's debatable whether the following code should live here or in the drawing section.
-                // First clear the framebuffer...
+            // if !state.left_mouse_down && state.prev_left_mouse_down {
+            //     println!{"mouse is released"}
+            // }
+            
+            // // We can actually handle events now that we know what they all are.
+            // let shift_enabled = now_keys[VirtualKeyCode::LShift as usize]
+            //     || now_keys[VirtualKeyCode::RShift as usize];
 
-                let mut game_objects: Vec<Drawable> = vec![];
-                game_objects.push(Drawable::Rectangle(r1, c1));
-                game_objects.push(Drawable::RectOutlined(r2, c2));
+            // if now_keys[VirtualKeyCode::Escape as usize] {
+            //     *control_flow = ControlFlow::Exit;
+            // }
+            // if now_keys[VirtualKeyCode::Down as usize] {
+            //     if shift_enabled {
+            //         y = if y + w < HEIGHT - 1 {
+            //             y + movement_speed
+            //         } else {
+            //             y
+            //         };
+            //     } else {
+            //         color = if color == 0 {
+            //             colors.len() - 1
+            //         } else {
+            //             color - 1
+            //         };
+            //     }
+            // }
+            // if now_keys[VirtualKeyCode::Up as usize] {
+            //     if shift_enabled {
+            //         y = if y > 0 { y - movement_speed } else { y };
+            //     } else {
+            //         color = if color == 0 {
+            //             colors.len() - 1
+            //         } else {
+            //             color - 1
+            //         };
+            //     }
+            // }
+            // if now_keys[VirtualKeyCode::Left as usize] && w > 0 {
+            //     if shift_enabled {
+            //         x = if x > 0 { x - 1 } else { x };
+            //     } else {
+            //         w -= movement_speed;
+            //     }
+            // }
+            // if now_keys[VirtualKeyCode::Right as usize] && w < WIDTH - 1 {
+            //     if shift_enabled {
+            //         x = if x + w < WIDTH - 1 { x + 1 } else { x };
+            //     } else {
+            //         w += movement_speed;
+            //     }
+            // }
+            // It's debatable whether the following code should live here or in the drawing section.
+            // First clear the framebuffer...
 
-                draw(&mut state, game_objects);
+            let game_objects: Vec<Drawable> =
+                vec![Drawable::Rectangle(r1, c1), Drawable::RectOutlined(r2, c2)];
 
-                let deck = load_cards_from_file("../cards.json");
-            }
-            _ => (),
+            draw(&mut state, game_objects);
+
+            let deck = load_cards_from_file("../cards2.json");
         }
+
+        handle_winit_event(event, control_flow, &mut state);
     });
 }
