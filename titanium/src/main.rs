@@ -1,6 +1,6 @@
 use engine::{
     clear, draw, handle_winit_event, load_cards_from_file, setup,
-    Color, Drawable, DraggableSnapType, Event, Rect, VirtualKeyCode, check_and_handle_drag
+    Color, Drawable, DraggableSnapType, Event, Rect, VirtualKeyCode, check_and_handle_drag, generate_deck_slots
 };
 use winit::event_loop::EventLoop;
 
@@ -31,16 +31,22 @@ fn main() {
     // state.bg_color = BACKGROUND_COLOR;
     let event_loop = EventLoop::new();
 
-    let starting_game_objects: Vec<Drawable> =
+    let mut starting_game_objects: Vec<Drawable> =
     vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
+    
+    let mut slots = generate_deck_slots((25, 40), 5, 5, 5, (255,0,255,255),(0,0,255,255),(255,255,255,255),(220,220,250,255));
+
+    starting_game_objects.append(&mut slots);
 
     state.drawables = starting_game_objects.clone();
     event_loop.run(move |event, _, control_flow| {
         if event == Event::MainEventsCleared {
             state.bg_color = BACKGROUND_COLOR;
             // let mut new_objects = game_objects.clone();
+
             check_and_handle_drag(&mut state);
             draw(&mut state);
+            
 
             
             // if state.left_mouse_down {

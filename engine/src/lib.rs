@@ -230,11 +230,15 @@ fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
     )
 }
 
-fn generate_deck_slots(
+pub fn generate_deck_slots(
     card_size: (usize, usize),
     card_padding_bottom: usize,
     card_padding_top: usize,
     num_slots: usize,
+    slot_background_color: Color,
+    deck_slot_background_color: Color,
+    slot_border_color: Color,
+    spacer_background_color: Color,
 ) -> Vec<Drawable> {
     let (card_width, card_height) = card_size;
     assert!(card_width * (num_slots + 1) < WIDTH);
@@ -248,15 +252,15 @@ fn generate_deck_slots(
             w: WIDTH,
             h: HEIGHT - card_height - card_padding_bottom,
         },
-        (255, 255, 255, 100),
+        spacer_background_color,
         None,
     );
 
     let mut slot_drawables: Vec<Drawable> = vec![container];
+    let card_y = HEIGHT - card_height - (card_padding_bottom);
 
     (1..num_slots + 1).for_each(|slot| {
         let card_x = slot * spacer_width + (slot - 1) * card_width;
-        let card_y = HEIGHT - card_height - (card_padding_bottom);
         let card_slot_background = Drawable::Rectangle(
             Rect {
                 x: card_x,
@@ -264,7 +268,7 @@ fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            (255, 0, 0, 255),
+            slot_background_color,
             None,
         );
         let card_slot_frame = Drawable::RectOutlined(
@@ -274,13 +278,38 @@ fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            (255, 255, 255, 255),
+            slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
-        slot_drawables.append(vec![card_slot_background, card_slot_frame])
+        slot_drawables.push(card_slot_background);
+        slot_drawables.push(card_slot_frame);
     });
 
-    vec![]
+    let deck_slot_x = (num_slots + 2) * spacer_width + num_slots * card_width;
+    let deck_slot_y = card_y;
+    let deck_slot_background = Drawable::Rectangle(
+        Rect {
+            x: deck_slot_x,
+            y: deck_slot_y,
+            w: card_width,
+            h: card_height,
+        },
+        deck_slot_background_color,
+        None,
+    );
+    let deck_slot_frame = Drawable::RectOutlined(
+        Rect {
+            x: deck_slot_x,
+            y: deck_slot_y,
+            w: card_width,
+            h: card_height,
+        },
+        slot_border_color,
+        Some(DraggableSnapType::Card(false, true)),
+    );
+    slot_drawables.push(deck_slot_background);
+    slot_drawables.push(deck_slot_frame);
+    slot_drawables
 }
 
 pub fn check_and_handle_drag(state: &mut State) {
