@@ -12,6 +12,7 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use std::cmp::{max, min};
 use std::fs::File;
 use std::io::Read;
 use std::sync::Arc;
@@ -43,7 +44,7 @@ use winit::window::{Window, WindowBuilder};
 
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
-
+pub type FbCoords = (usize, usize);
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 
@@ -66,7 +67,7 @@ pub struct Card {
     specialTag: String,
     special: String, //should be a function somehow
     attack: usize,
-    attackTag:String,
+    attackTag: String,
     specialAttribute: String,
 }
 
@@ -114,7 +115,6 @@ impl Card {
         )
     }
 }
-
 
 #[derive(Clone, Deserialize)]
 pub struct Deck {
@@ -184,7 +184,6 @@ pub fn load_cards_from_file(file_path: &str) -> Deck {
     // println!("{}", deckf.deck.cards[0].name);
     // println!("{}", deck.cards[0].name);
     // cards.push(c);
-
 }
 
 pub struct State {
@@ -215,9 +214,130 @@ pub struct State {
     window_height: f64,
     pub left_mouse_down: bool,
     pub prev_left_mouse_down: bool,
-    pub mouse_coords: (usize, usize)
+    pub mouse_coords: FbCoords,
+    pub prev_mouse_coords: FbCoords,
+    pub initial_mouse_down_coords: Option<FbCoords>,
+    pub drag_item_id: Option<usize>,
+    pub drag_item_initial_coords: Option<FbCoords>,
 }
 
+fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
+    let (x_initial, y_initial) = initial;
+    let (x_shift, y_shift) = shifter;
+    (
+        max(x_initial as i32 + x_shift, 0) as usize,
+        max(y_initial as i32 + y_shift, 0) as usize,
+    )
+}
+
+fn generate_deck_slots(
+    card_size: (usize, usize),
+    card_padding_bottom: usize,
+    card_padding_top: usize,
+    num_slots: usize,
+) -> Vec<Drawable> {
+    let (card_width, card_height) = card_size;
+    assert!(card_width * (num_slots + 1) < WIDTH);
+
+    let total_spacer_space = WIDTH - (num_slots * card_width);
+    let spacer_width = total_spacer_space / (num_slots + 3); // 3 represents double space between last card and deck, plus space to right of deck
+    let container = Drawable::Rectangle(
+        Rect {
+            x: 0,
+            y: HEIGHT - card_height - (card_padding_bottom + card_padding_top),
+            w: WIDTH,
+            h: HEIGHT - card_height - card_padding_bottom,
+        },
+        (255, 255, 255, 100),
+        None,
+    );
+
+    let mut slot_drawables: Vec<Drawable> = vec![container];
+
+    (1..num_slots + 1).for_each(|slot| {
+        let card_x = slot * spacer_width + (slot - 1) * card_width;
+        let card_y = HEIGHT - card_height - (card_padding_bottom);
+        let card_slot_background = Drawable::Rectangle(
+            Rect {
+                x: card_x,
+                y: card_y,
+                w: card_width,
+                h: card_height,
+            },
+            (255, 0, 0, 255),
+            None,
+        );
+        let card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y: card_y,
+                w: card_width,
+                h: card_height,
+            },
+            (255, 255, 255, 255),
+            Some(DraggableSnapType::Card(false, true)),
+        );
+        slot_drawables.append(vec![card_slot_background, card_slot_frame])
+    });
+
+    vec![]
+}
+
+pub fn check_and_handle_drag(state: &mut State) {
+    let temp_drawables = state.drawables.clone();
+    if state.left_mouse_down {
+        if !state.prev_left_mouse_down {
+            let dragged_item = temp_drawables
+                .iter()
+                .rev()
+                .enumerate()
+                .find(|(_, item)| item.contains(state.mouse_coords) && item.is_draggable());
+
+            if let Some((index, item)) = dragged_item {
+                state.drag_item_id = Some((temp_drawables.len() - 1) - index);
+                state.drag_item_initial_coords = Some(item.get_coords());
+                state.initial_mouse_down_coords = Some(state.mouse_coords);
+            } else {
+                state.drag_item_id = None;
+                state.drag_item_initial_coords = None;
+            }
+        } else if let (
+            Some(index),
+            Some((initial_mouse_x, initial_mouse_y)),
+            Some(initial_item_coords),
+        ) = (
+            state.drag_item_id,
+            state.initial_mouse_down_coords,
+            state.drag_item_initial_coords,
+        ) {
+            let drawable = &mut state.drawables[index];
+            let x_shift = (state.mouse_coords.0 as i32) - (initial_mouse_x as i32);
+            let y_shift = (state.mouse_coords.1 as i32) - (initial_mouse_y as i32);
+
+            let shifted_coords = coord_shift(initial_item_coords, (x_shift, y_shift));
+            drawable.move_to(shifted_coords);
+        }
+    } else if let (
+        Some(index),
+        Some((initial_mouse_x, initial_mouse_y)),
+        Some(initial_item_coords),
+    ) = (
+        state.drag_item_id,
+        state.initial_mouse_down_coords,
+        state.drag_item_initial_coords,
+    ) {
+        let drawable = &mut state.drawables[index];
+        let x_shift = (state.mouse_coords.0 as i32) - (initial_mouse_x as i32);
+        let y_shift = (state.mouse_coords.1 as i32) - (initial_mouse_y as i32);
+
+        let shifted_coords = coord_shift(initial_item_coords, (x_shift, y_shift));
+        drawable.move_to(shifted_coords);
+
+        state.drag_item_id = None;
+        state.drag_item_initial_coords = None;
+        state.initial_mouse_down_coords = None;
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct Rect {
@@ -227,10 +347,87 @@ pub struct Rect {
     pub h: usize,
 }
 
-#[derive(Clone)]
+// Two fields, one for whether it can snap to one like it, and whether one like it can snap to it
+#[derive(Copy, Clone)]
+pub enum DraggableSnapType {
+    Card(bool, bool),
+}
+
+#[derive(Copy, Clone)]
 pub enum Drawable {
-    Rectangle(Rect, Color),
-    RectOutlined(Rect, Color),
+    Rectangle(Rect, Color, Option<DraggableSnapType>),
+    RectOutlined(Rect, Color, Option<DraggableSnapType>),
+}
+
+impl Drawable {
+    pub fn contains(self: &Drawable, coord: FbCoords) -> bool {
+        let (x, y) = coord;
+        match self {
+            Drawable::Rectangle(rect, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
+            Drawable::RectOutlined(rect, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
+        }
+    }
+
+    pub fn get_coords(self: &Drawable) -> FbCoords {
+        match self {
+            Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
+            Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
+        }
+    }
+
+    pub fn shift(self: &mut Drawable, amount: (i32, i32)) {
+        let (x, y) = amount;
+        // println!{"amount shifted: {:?}", amount};
+        match self {
+            Drawable::Rectangle(rect, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+            Drawable::RectOutlined(rect, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+        }
+    }
+
+    pub fn move_to(self: &mut Drawable, coords: FbCoords) {
+        let (x, y) = coords;
+        match self {
+            Drawable::Rectangle(rect, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
+            Drawable::RectOutlined(rect, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
+        }
+    }
+
+    pub fn is_draggable(self: &Drawable) -> bool {
+        match self {
+            Drawable::Rectangle(_, _, draggable) => draggable.is_some(),
+            Drawable::RectOutlined(_, _, draggable) => draggable.is_some(),
+        }
+    }
+
+    pub fn debug_x(self: &Drawable) -> usize {
+        match self {
+            Drawable::Rectangle(rect, _, _) => rect.x,
+            Drawable::RectOutlined(rect, _, _) => rect.x,
+        }
+    }
+
+    fn debug_coords(self: &Drawable) -> (usize, usize) {
+        match self {
+            Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
+            Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
+        }
+    }
 }
 
 impl Rect {
@@ -240,16 +437,17 @@ impl Rect {
 }
 
 fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
-    for obj in drawables {
+    drawables.into_iter().enumerate().for_each(|(_, obj)| {
         match obj {
-            Drawable::Rectangle(r, c) => {
+            Drawable::Rectangle(r, c, _) => {
+                // println!("rectangle x: {:?}", r.x);
                 rectangle(fb, r, c);
             }
-            Drawable::RectOutlined(r, c) => {
+            Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(fb, r, c);
             }
         }
-    }
+    });
 }
 
 // Here's what clear looks like, though we won't use it
@@ -258,18 +456,28 @@ pub fn clear(fb: &mut [Color], c: Color) {
     fb.fill(c);
 }
 
+// #[allow(dead_code)]
+// fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
+//     assert!(y < HEIGHT);
+//     assert!(x0 <= x1);
+//     assert!(x1 < WIDTH);
+//     fb[y * WIDTH + x0..(y * WIDTH + x1)].fill(c);
+// }
+
 #[allow(dead_code)]
 fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
-    assert!(y < HEIGHT);
-    assert!(x0 <= x1);
-    assert!(x1 < WIDTH);
-    fb[y * WIDTH + x0..(y * WIDTH + x1)].fill(c);
+    let min_x = min(max(0, x0), WIDTH);
+    let max_x = max(min(WIDTH, x1), 0);
+    if y >= HEIGHT {
+        return;
+    }
+    fb[y * WIDTH + min_x..(y * WIDTH + max_x)].fill(c);
 }
 
 #[allow(dead_code)]
 fn rectangle(fb: &mut [Color], r: Rect, c: Color) {
-    assert!(r.w + r.x <= WIDTH);
-    assert!(r.h + r.y <= HEIGHT);
+    // assert!(r.w + r.x < WIDTH);
+    // assert!(r.h + r.y < HEIGHT);
 
     for i in (r.y)..(r.y + r.h) {
         line(fb, r.x, r.x + r.w, i, c);
@@ -331,25 +539,37 @@ fn line_bresenham(
     }
 }
 
+// fn generate_card_spaces(num_cards: usize, card_width: usize, card_height: usize) -> Vec<Drawable> {
+//     assert!(card_width * (num_cards + 1) < WIDTH);
+//     assert!(card_height < HEIGHT / 4);
+
+//     let even_spacing =
+//     return vec![]
+// }
+
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
-    viewport: &mut Viewport) -> (Vec<Arc<Framebuffer>>,(f64,f64)) {
+    viewport: &mut Viewport,
+) -> (Vec<Arc<Framebuffer>>, (f64, f64)) {
     let dimensions = images[0].dimensions().width_height();
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
     let mut window_width = dimensions[0].into();
     let mut window_height = dimensions[1].into();
-    (images
-        .iter()
-        .map(|image| {
-            let view = ImageView::new(image.clone()).unwrap();
-            Framebuffer::start(render_pass.clone())
-                .add(view)
-                .unwrap()
-                .build()
-                .unwrap()
-        })
-        .collect::<Vec<_>>(), (window_width, window_height))
+    (
+        images
+            .iter()
+            .map(|image| {
+                let view = ImageView::new(image.clone()).unwrap();
+                Framebuffer::start(render_pass.clone())
+                    .add(view)
+                    .unwrap()
+                    .build()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>(),
+        (window_width, window_height),
+    )
 }
 
 pub fn setup() -> State {
@@ -388,7 +608,7 @@ pub fn setup() -> State {
     )
     .unwrap();
     let queue = queues.next().unwrap();
-    let (mut swapchain, images) = {
+    let (swapchain, images) = {
         let caps = surface.capabilities(physical_device).unwrap();
         let composite_alpha = caps.supported_composite_alpha.iter().next().unwrap();
         let format = caps.supported_formats[0].0;
@@ -564,7 +784,8 @@ pub fn setup() -> State {
         depth_range: 0.0..1.0,
     };
 
-    let (framebuffers,(window_width, window_height)) = window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
+    let (framebuffers, (window_width, window_height)) =
+        window_size_dependent_setup(&images, render_pass.clone(), &mut viewport);
     let recreate_swapchain = false;
     let previous_frame_end = Some(sync::now(device.clone()).boxed());
 
@@ -596,11 +817,15 @@ pub fn setup() -> State {
         window_height,
         left_mouse_down: false,
         prev_left_mouse_down: false,
-        mouse_coords: (WIDTH + 1, HEIGHT + 1)
+        mouse_coords: (WIDTH, HEIGHT),
+        prev_mouse_coords: (WIDTH, HEIGHT),
+        initial_mouse_down_coords: None,
+        drag_item_id: None,
+        drag_item_initial_coords: None,
     }
 }
 
-pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
+pub fn draw(state: &mut State) {
     //instead, take a state struct
     {
         // We need to synchronize here to send new data to the GPU.
@@ -616,7 +841,7 @@ pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
     // clear(&mut state.fb2d.as_slice()[0], state.bg_color);
 
     // here is where we draw!!!
-    draw_objects(&mut state.fb2d, drawables);
+    draw_objects(&mut state.fb2d, state.drawables.clone());
     // draw_objects(&mut state.fb2d.as_slice()[0], drawables);
 
     // Now we can copy into our buffer.
@@ -642,9 +867,8 @@ pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
         );
 
         state.framebuffers = setup_result.0;
-        state.window_width = setup_result.1.0;
-        state.window_height = setup_result.1.1;
-        
+        state.window_width = setup_result.1 .0;
+        state.window_height = setup_result.1 .1;
         state.recreate_swapchain = false;
     }
     let (image_num, suboptimal, acquire_future) =
@@ -715,18 +939,11 @@ pub fn draw(state: &mut State, drawables: Vec<Drawable>) {
     }
 }
 
-pub fn synchronize_prev_frame_end(state: &mut State) {
-    {
-        // We need to synchronize here to send new data to the GPU.
-        // We can't send the new framebuffer until the previous frame is done being drawn.
-        // Dropping the future will block until it's done.
-        if let Some(mut fut) = state.previous_frame_end.take() {
-            fut.cleanup_finished();
-        }
-    }
-}
-
-pub fn handle_winit_event(event: winit::event::Event<()>, control_flow: &mut winit::event_loop::ControlFlow, state: &mut State) {
+pub fn handle_winit_event(
+    event: winit::event::Event<()>,
+    control_flow: &mut winit::event_loop::ControlFlow,
+    state: &mut State,
+) {
     match event {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
@@ -745,6 +962,7 @@ pub fn handle_winit_event(event: winit::event::Event<()>, control_flow: &mut win
             // Leave now_keys alone, but copy over all changed keys
             state.prev_keys.copy_from_slice(&state.now_keys);
             state.prev_left_mouse_down = state.left_mouse_down;
+            state.prev_mouse_coords = state.mouse_coords;
         }
         // WindowEvent->KeyboardInput: Keyboard input!
         Event::WindowEvent {
@@ -784,7 +1002,10 @@ pub fn handle_winit_event(event: winit::event::Event<()>, control_flow: &mut win
         } => {
             let cursor_x = position.x / state.window_width;
             let cursor_y = position.y / state.window_height;
-            state.mouse_coords = ((cursor_x * HEIGHT as f64) as usize, (cursor_y * WIDTH as f64) as usize);
+            state.mouse_coords = (
+                (cursor_x * WIDTH as f64) as usize,
+                (cursor_y * HEIGHT as f64) as usize,
+            );
         }
         Event::WindowEvent {
             event:
@@ -799,7 +1020,7 @@ pub fn handle_winit_event(event: winit::event::Event<()>, control_flow: &mut win
             if button == winit::event::MouseButton::Left {
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
-        },
+        }
         _ => {}
     }
 }

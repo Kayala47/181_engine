@@ -1,10 +1,15 @@
 use engine::{
-    clear, draw, handle_winit_event, load_cards_from_file, setup, synchronize_prev_frame_end,
-    Color, Drawable, Event, Rect, VirtualKeyCode,
+    clear, draw, handle_winit_event, load_cards_from_file, setup,
+    Color, Drawable, DraggableSnapType, Event, Rect, VirtualKeyCode, check_and_handle_drag
 };
 use winit::event_loop::EventLoop;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
+
+struct GameState {
+    dragged: String,
+    
+}
 
 fn main() {
     let r1 = Rect {
@@ -26,10 +31,18 @@ fn main() {
     // state.bg_color = BACKGROUND_COLOR;
     let event_loop = EventLoop::new();
 
+    let starting_game_objects: Vec<Drawable> =
+    vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
+
+    state.drawables = starting_game_objects.clone();
     event_loop.run(move |event, _, control_flow| {
         if event == Event::MainEventsCleared {
-            synchronize_prev_frame_end(&mut state);
+            state.bg_color = BACKGROUND_COLOR;
+            // let mut new_objects = game_objects.clone();
+            check_and_handle_drag(&mut state);
+            draw(&mut state);
 
+            
             // if state.left_mouse_down {
             //     println!{"mouse is down"}
             // }
@@ -37,7 +50,7 @@ fn main() {
             // if !state.left_mouse_down && state.prev_left_mouse_down {
             //     println!{"mouse is released"}
             // }
-            
+
             // // We can actually handle events now that we know what they all are.
             // let shift_enabled = now_keys[VirtualKeyCode::LShift as usize]
             //     || now_keys[VirtualKeyCode::RShift as usize];
@@ -88,14 +101,14 @@ fn main() {
             // It's debatable whether the following code should live here or in the drawing section.
             // First clear the framebuffer...
 
-            let game_objects: Vec<Drawable> =
-                vec![Drawable::Rectangle(r1, c1), Drawable::RectOutlined(r2, c2)];
+            
 
-            draw(&mut state, game_objects);
-
+            
             let deck = load_cards_from_file("../cards2.json");
         }
 
         handle_winit_event(event, control_flow, &mut state);
     });
 }
+
+
