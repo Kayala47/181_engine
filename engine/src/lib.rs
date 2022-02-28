@@ -343,7 +343,6 @@ pub fn check_and_handle_drag(state: &mut State) {
                 .find(|(_, item)| item.contains(state.mouse_coords) && item.is_draggable());
             
             if let Some((index, item)) = dragged_item {
-                println!{"item is draggable: {:?}", item.is_draggable()};
                 state.drag_item_id = Some((temp_drawables.len() - 1) - index);
                 state.drag_item_initial_coords = Some(item.get_coords());
                 state.initial_mouse_down_coords = Some(state.mouse_coords);
