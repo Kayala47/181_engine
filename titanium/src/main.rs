@@ -34,7 +34,7 @@ fn main() {
     let mut starting_game_objects: Vec<Drawable> =
     vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
     
-    let mut slots = generate_deck_slots((25, 40), 5, 5, 5, (255,0,255,255),(0,0,255,255),(255,255,255,255),(220,220,250,255));
+    let mut slots = generate_deck_slots((30, 40), 5, 5, 5, (255,30,255,255),(0,255,0,255),(255,255,255,255),(220,220,250,255));
 
     starting_game_objects.append(&mut slots);
 

@@ -230,6 +230,26 @@ fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
     )
 }
 
+pub fn calculate_card_spacer_width(card_size: (usize, usize), num_slots: usize) -> usize {
+    let (card_width, _) = card_size;
+    let total_spacer_space = WIDTH - ((num_slots + 1) * card_width);
+    total_spacer_space / (num_slots + 3)
+}
+
+pub fn calculate_deck_position(
+    card_size: (usize, usize),
+    card_padding_bottom: usize,
+    num_slots: usize,
+) -> FbCoords {
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots);
+    let (card_width, card_height) = card_size;
+    (
+        (num_slots + 2) * spacer_width + num_slots * card_width,
+        HEIGHT - card_height - card_padding_bottom,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn generate_deck_slots(
     card_size: (usize, usize),
     card_padding_bottom: usize,
@@ -243,8 +263,7 @@ pub fn generate_deck_slots(
     let (card_width, card_height) = card_size;
     assert!(card_width * (num_slots + 1) < WIDTH);
 
-    let total_spacer_space = WIDTH - (num_slots * card_width);
-    let spacer_width = total_spacer_space / (num_slots + 3); // 3 represents double space between last card and deck, plus space to right of deck
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots); // 3 represents double space between last card and deck, plus space to right of deck
     let container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -255,6 +274,7 @@ pub fn generate_deck_slots(
         spacer_background_color,
         None,
     );
+
 
     let mut slot_drawables: Vec<Drawable> = vec![container];
     let card_y = HEIGHT - card_height - (card_padding_bottom);
@@ -321,8 +341,9 @@ pub fn check_and_handle_drag(state: &mut State) {
                 .rev()
                 .enumerate()
                 .find(|(_, item)| item.contains(state.mouse_coords) && item.is_draggable());
-
+            
             if let Some((index, item)) = dragged_item {
+                println!{"item is draggable: {:?}", item.is_draggable()};
                 state.drag_item_id = Some((temp_drawables.len() - 1) - index);
                 state.drag_item_initial_coords = Some(item.get_coords());
                 state.initial_mouse_down_coords = Some(state.mouse_coords);
@@ -439,8 +460,26 @@ impl Drawable {
 
     pub fn is_draggable(self: &Drawable) -> bool {
         match self {
-            Drawable::Rectangle(_, _, draggable) => draggable.is_some(),
-            Drawable::RectOutlined(_, _, draggable) => draggable.is_some(),
+            Drawable::Rectangle(_, _, drag_type) => {
+                match drag_type {
+                    Some(DraggableSnapType::Card(draggable,_)) => {
+                        *draggable
+                    },
+                    _ => {
+                        false
+                    }
+                }
+            },
+            Drawable::RectOutlined(_, _, drag_type) => {
+                match drag_type {
+                    Some(DraggableSnapType::Card(draggable,_)) => {
+                        *draggable
+                    },
+                    _ => {
+                        false
+                    }
+                }
+            },
         }
     }
 
@@ -567,14 +606,6 @@ fn line_bresenham(
         }
     }
 }
-
-// fn generate_card_spaces(num_cards: usize, card_width: usize, card_height: usize) -> Vec<Drawable> {
-//     assert!(card_width * (num_cards + 1) < WIDTH);
-//     assert!(card_height < HEIGHT / 4);
-
-//     let even_spacing =
-//     return vec![]
-// }
 
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
