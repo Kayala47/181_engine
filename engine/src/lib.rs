@@ -359,6 +359,7 @@ pub fn check_and_handle_drag(state: &mut State) {
             state.initial_mouse_down_coords,
             state.drag_item_initial_coords,
         ) {
+            // drag
             let drawable = &mut state.drawables[index];
             let x_shift = (state.mouse_coords.0 as i32) - (initial_mouse_x as i32);
             let y_shift = (state.mouse_coords.1 as i32) - (initial_mouse_y as i32);
@@ -375,12 +376,25 @@ pub fn check_and_handle_drag(state: &mut State) {
         state.initial_mouse_down_coords,
         state.drag_item_initial_coords,
     ) {
-        let drawable = &mut state.drawables[index];
-        let x_shift = (state.mouse_coords.0 as i32) - (initial_mouse_x as i32);
-        let y_shift = (state.mouse_coords.1 as i32) - (initial_mouse_y as i32);
+        // release
+        let dragged = &mut state.drawables[index];
+         
+        // item to snap to
+        let release_item = temp_drawables
+                .iter()
+                .rev()
+                .find(|item| item.contains(state.mouse_coords) && item.is_releasable(dragged));
 
-        let shifted_coords = coord_shift(initial_item_coords, (x_shift, y_shift));
-        drawable.move_to(shifted_coords);
+        
+        if let Some(item) = release_item {
+            dragged.move_to(item.get_coords())
+        } else {
+            let x_shift = (state.mouse_coords.0 as i32) - (initial_mouse_x as i32);
+            let y_shift = (state.mouse_coords.1 as i32) - (initial_mouse_y as i32);
+
+            let shifted_coords = coord_shift(initial_item_coords, (x_shift, y_shift));
+            dragged.move_to(shifted_coords);
+        }
 
         state.drag_item_id = None;
         state.drag_item_initial_coords = None;
@@ -457,44 +471,43 @@ impl Drawable {
         }
     }
 
-    pub fn is_draggable(self: &Drawable) -> bool {
+    pub fn get_drag_type(self: &Drawable) -> Option<DraggableSnapType> {
         match self {
             Drawable::Rectangle(_, _, drag_type) => {
-                match drag_type {
-                    Some(DraggableSnapType::Card(draggable,_)) => {
-                        *draggable
-                    },
-                    _ => {
-                        false
-                    }
-                }
+                *drag_type
             },
             Drawable::RectOutlined(_, _, drag_type) => {
-                match drag_type {
-                    Some(DraggableSnapType::Card(draggable,_)) => {
-                        *draggable
-                    },
-                    _ => {
-                        false
-                    }
-                }
+                *drag_type
             },
         }
-    }
+    } 
 
-    pub fn debug_x(self: &Drawable) -> usize {
-        match self {
-            Drawable::Rectangle(rect, _, _) => rect.x,
-            Drawable::RectOutlined(rect, _, _) => rect.x,
+    pub fn is_draggable(self: &Drawable) -> bool {
+        let drag_type = self.get_drag_type();
+
+        match drag_type {
+            Some(DraggableSnapType::Card(draggable,_)) => {
+                draggable
+            },
+            _ => {
+                false
+            }
         }
     }
 
-    fn debug_coords(self: &Drawable) -> (usize, usize) {
-        match self {
-            Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
-            Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
+    pub fn is_releasable(self: &Drawable, draggable: &Drawable) -> bool {
+        let drag_type = draggable.get_drag_type().unwrap();
+        let release_type = self.get_drag_type();
+        match drag_type {
+            DraggableSnapType::Card(_,_) => {
+                if let Some(DraggableSnapType::Card(_,true)) = release_type {
+                    return true
+                }
+                false
+            }
         }
     }
+
 }
 
 impl Rect {

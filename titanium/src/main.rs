@@ -31,12 +31,14 @@ fn main() {
     // state.bg_color = BACKGROUND_COLOR;
     let event_loop = EventLoop::new();
 
-    let mut starting_game_objects: Vec<Drawable> =
-    vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
+    let mut starting_game_objects: Vec<Drawable> = vec![];
+    
+    let mut boxes = vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
     
     let mut slots = generate_deck_slots((30, 40), 5, 5, 5, (255,30,255,255),(0,255,0,255),(255,255,255,255),(220,220,250,255));
 
     starting_game_objects.append(&mut slots);
+    starting_game_objects.append(&mut boxes);
 
     state.drawables = starting_game_objects.clone();
     event_loop.run(move |event, _, control_flow| {
