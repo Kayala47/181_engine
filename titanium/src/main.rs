@@ -1,10 +1,15 @@
 use engine::{
-    clear, draw, load_cards_from_file, setup, synchronize_prev_frame_end, Color, Drawable, Event,
-    Rect, VirtualKeyCode,
+    clear, draw, handle_winit_event, load_cards_from_file, setup,
+    Color, Drawable, DraggableSnapType, Event, Rect, VirtualKeyCode, check_and_handle_drag, generate_deck_slots
 };
 use winit::event_loop::EventLoop;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
+
+struct GameState {
+    dragged: String,
+    
+}
 
 fn main() {
     let r1 = Rect {
@@ -26,71 +31,40 @@ fn main() {
     // state.bg_color = BACKGROUND_COLOR;
     let event_loop = EventLoop::new();
 
+    let mut starting_game_objects: Vec<Drawable> = vec![];
+    
+    let mut boxes = vec![Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))), Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false)))];
+    
+    let mut slots = generate_deck_slots((30, 40), 5, 5, 5, (255,30,255,255),(0,255,0,255),(255,255,255,255),(220,220,250,255));
+
+    starting_game_objects.append(&mut slots);
+    starting_game_objects.append(&mut boxes);
+
+    state.drawables = starting_game_objects.clone();
     event_loop.run(move |event, _, control_flow| {
-        // event_loop_run(event);
 
-        match event {
-            Event::MainEventsCleared => {
-                // synchronize_prev_frame_end(state);
-                // // We can actually handle events now that we know what they all are.
-                // let shift_enabled = now_keys[VirtualKeyCode::LShift as usize]
-                //     || now_keys[VirtualKeyCode::RShift as usize];
+        if event == Event::MainEventsCleared {
+            state.bg_color = BACKGROUND_COLOR;
+            // let mut new_objects = game_objects.clone();
 
-                // if now_keys[VirtualKeyCode::Escape as usize] {
-                //     *control_flow = ControlFlow::Exit;
-                // }
-                // if now_keys[VirtualKeyCode::Down as usize] {
-                //     if shift_enabled {
-                //         y = if y + w < HEIGHT - 1 {
-                //             y + movement_speed
-                //         } else {
-                //             y
-                //         };
-                //     } else {
-                //         color = if color == 0 {
-                //             colors.len() - 1
-                //         } else {
-                //             color - 1
-                //         };
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Up as usize] {
-                //     if shift_enabled {
-                //         y = if y > 0 { y - movement_speed } else { y };
-                //     } else {
-                //         color = if color == 0 {
-                //             colors.len() - 1
-                //         } else {
-                //             color - 1
-                //         };
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Left as usize] && w > 0 {
-                //     if shift_enabled {
-                //         x = if x > 0 { x - 1 } else { x };
-                //     } else {
-                //         w -= movement_speed;
-                //     }
-                // }
-                // if now_keys[VirtualKeyCode::Right as usize] && w < WIDTH - 1 {
-                //     if shift_enabled {
-                //         x = if x + w < WIDTH - 1 { x + 1 } else { x };
-                //     } else {
-                //         w += movement_speed;
-                //     }
-                // }
-                // It's debatable whether the following code should live here or in the drawing section.
-                // First clear the framebuffer...
+            check_and_handle_drag(&mut state);
+            draw(&mut state);
+            
+            
+            let deck = load_cards_from_file("../cards2.json");
 
-                let mut game_objects: Vec<Drawable> = vec![];
-                game_objects.push(Drawable::Rectangle(r1, c1));
-                game_objects.push(Drawable::RectOutlined(r2, c2));
+            let mut game_objects: Vec<Drawable> = vec![];
+            game_objects.push(Drawable::Rectangle(r1, c1));
+            game_objects.push(Drawable::RectOutlined(r2, c2));
 
-                draw(&mut state, game_objects);
+            draw(&mut state, game_objects);
 
-                let deck = load_cards_from_file("../cards2.json");
-            }
-            _ => (),
+            let deck = load_cards_from_file("../cards2.json");
+
         }
+
+        handle_winit_event(event, control_flow, &mut state);
     });
 }
+
+
