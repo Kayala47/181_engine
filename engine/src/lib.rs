@@ -188,7 +188,7 @@ pub fn load_cards_from_file(file_path: &str) -> Deck {
 }
 
 pub struct State {
-    pub fb2d: [(u8, u8, u8, u8); WIDTH * HEIGHT],
+    pub fb2d: Vec<(u8, u8, u8, u8)>,
     pub drawables: Vec<Drawable>,
     pub bg_color: Color,
     previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
@@ -463,7 +463,7 @@ pub fn setup() -> State {
     // Here's our (2D drawing) framebuffer.
     // let fb2d_l = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
     // let mut fb2d = vec![fb2d_l];
-    let fb2d = [(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
+    let fb2d = vec![(128 as u8, 64 as u8, 64 as u8, 255 as u8); WIDTH * HEIGHT];
     // We'll work on it locally, and copy it to a GPU buffer every frame.
     // Then on the GPU, we'll copy it into an Image.
     let fb2d_buffer = CpuAccessibleBuffer::from_iter(

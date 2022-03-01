@@ -88,7 +88,7 @@ fn main() {
 
                 draw(&mut state, game_objects);
 
-                let deck = load_cards_from_file("../cards.json");
+                let deck = load_cards_from_file("../cards2.json");
             }
             _ => (),
         }
