@@ -9,6 +9,7 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
+use fontdue;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -275,7 +276,6 @@ pub fn generate_deck_slots(
         None,
     );
 
-
     let mut slot_drawables: Vec<Drawable> = vec![container];
     let card_y = HEIGHT - card_height - (card_padding_bottom);
 
@@ -332,6 +332,56 @@ pub fn generate_deck_slots(
     slot_drawables
 }
 
+pub fn render_character(s: &String, state: &mut State, r: Rect) {
+    assert!(r.x >= 0);
+    assert!(r.x + r.w <= WIDTH);
+    assert!(r.y + r.h <= HEIGHT);
+    assert!(r.y >= 0);
+
+    // WINDOWS
+    let font = include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
+
+    //MAC
+    // let font = include_bytes!("../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+
+    let size: f32 = 16.0;
+
+    let settings = fontdue::FontSettings {
+        scale: size,
+        ..fontdue::FontSettings::default()
+    };
+
+    let font = fontdue::Font::from_bytes(font, settings).unwrap();
+
+    let char: char = 'k';
+
+    let (metrics, bitmap) = font.rasterize(char, size);
+
+    let mut bitmap_rgb: Vec<(u8, u8, u8, u8)> = vec![];
+
+    // to draw a char at x,y loc with height h and width w, we draw into the framebuffer
+    // starting at y * WIDTH + x and go until (y + h) * WIDTH + x + W
+
+    for gray in bitmap {
+        bitmap_rgb.push((gray, gray, gray, 1));
+    }
+
+    let mut bit_iter = bitmap_rgb.into_iter();
+
+    for curr_y in (r.y)..(r.y + metrics.height) {
+        for j in (curr_y * WIDTH + r.x)..(curr_y * WIDTH + r.x + metrics.width) {
+            let pixel = bit_iter.next().unwrap();
+
+            if pixel.0 == 0 {
+                continue;
+            }
+
+            state.fb2d[j] = pixel;
+            // state.fb2d[j] = (255 as u8, 255 as u8, 255 as u8, 255 as u8);
+        }
+    }
+}
+
 pub fn check_and_handle_drag(state: &mut State) {
     let temp_drawables = state.drawables.clone();
     if state.left_mouse_down {
@@ -341,7 +391,7 @@ pub fn check_and_handle_drag(state: &mut State) {
                 .rev()
                 .enumerate()
                 .find(|(_, item)| item.contains(state.mouse_coords) && item.is_draggable());
-            
+
             if let Some((index, item)) = dragged_item {
                 state.drag_item_id = Some((temp_drawables.len() - 1) - index);
                 state.drag_item_initial_coords = Some(item.get_coords());
@@ -378,14 +428,13 @@ pub fn check_and_handle_drag(state: &mut State) {
     ) {
         // release
         let dragged = &mut state.drawables[index];
-         
+
         // item to snap to
         let release_item = temp_drawables
-                .iter()
-                .rev()
-                .find(|item| item.contains(state.mouse_coords) && item.is_releasable(dragged));
+            .iter()
+            .rev()
+            .find(|item| item.contains(state.mouse_coords) && item.is_releasable(dragged));
 
-        
         if let Some(item) = release_item {
             dragged.move_to(item.get_coords())
         } else {
@@ -473,25 +522,17 @@ impl Drawable {
 
     pub fn get_drag_type(self: &Drawable) -> Option<DraggableSnapType> {
         match self {
-            Drawable::Rectangle(_, _, drag_type) => {
-                *drag_type
-            },
-            Drawable::RectOutlined(_, _, drag_type) => {
-                *drag_type
-            },
+            Drawable::Rectangle(_, _, drag_type) => *drag_type,
+            Drawable::RectOutlined(_, _, drag_type) => *drag_type,
         }
-    } 
+    }
 
     pub fn is_draggable(self: &Drawable) -> bool {
         let drag_type = self.get_drag_type();
 
         match drag_type {
-            Some(DraggableSnapType::Card(draggable,_)) => {
-                draggable
-            },
-            _ => {
-                false
-            }
+            Some(DraggableSnapType::Card(draggable, _)) => draggable,
+            _ => false,
         }
     }
 
@@ -499,15 +540,14 @@ impl Drawable {
         let drag_type = draggable.get_drag_type().unwrap();
         let release_type = self.get_drag_type();
         match drag_type {
-            DraggableSnapType::Card(_,_) => {
-                if let Some(DraggableSnapType::Card(_,true)) = release_type {
-                    return true
+            DraggableSnapType::Card(_, _) => {
+                if let Some(DraggableSnapType::Card(_, true)) = release_type {
+                    return true;
                 }
                 false
             }
         }
     }
-
 }
 
 impl Rect {
@@ -535,14 +575,6 @@ fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
 pub fn clear(fb: &mut [Color], c: Color) {
     fb.fill(c);
 }
-
-// #[allow(dead_code)]
-// fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
-//     assert!(y < HEIGHT);
-//     assert!(x0 <= x1);
-//     assert!(x1 < WIDTH);
-//     fb[y * WIDTH + x0..(y * WIDTH + x1)].fill(c);
-// }
 
 #[allow(dead_code)]
 fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
@@ -914,6 +946,18 @@ pub fn draw(state: &mut State) {
 
     // here is where we draw!!!
     draw_objects(&mut state.fb2d, state.drawables.clone());
+
+    let r3 = Rect {
+        x: 150,
+        y: 10,
+        w: 100,
+        h: 100,
+    };
+
+    let text = "lkjdsfa".to_string();
+
+    render_character(&text, state, r3);
+
     // draw_objects(&mut state.fb2d.as_slice()[0], drawables);
 
     // Now we can copy into our buffer.
