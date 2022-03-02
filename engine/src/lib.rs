@@ -367,6 +367,7 @@ pub fn render_character(
     let mut bit_iter = bitmap_rgb.into_iter();
 
     for curr_y in (y)..(y + metrics.height) {
+        #[allow(clippy::needless_range_loop)]
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
             let pixel = bit_iter.next().unwrap();
 
@@ -376,7 +377,6 @@ pub fn render_character(
             }
 
             fb[j] = pixel;
-            // state.fb2d[j] = (255 as u8, 255 as u8, 255 as u8, 255 as u8);
         }
     }
 
@@ -384,9 +384,32 @@ pub fn render_character(
     (metrics.width, metrics.height)
 }
 
-// pub fn text(){
+pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32) {
+    //TODO: I would ideally like it to be able to decide it's own size based on the space
+    //it has to fill
+    let char_vec: Vec<char> = s.chars().collect();
 
-// }
+    let mut x = r.x;
+    let mut y = r.y;
+    let hor_lim = r.x + r.w;
+    let ver_lim = r.y + r.h;
+
+    for c in char_vec {
+        let (new_w, new_h) = render_character(c, fb, x, y, size);
+
+        x += new_w;
+
+        if x >= hor_lim {
+            x = r.x;
+            y += new_h;
+        }
+
+        if y >= ver_lim {
+            //stop drawing - sucks to suck
+            return;
+        }
+    }
+}
 
 pub fn check_and_handle_drag(state: &mut State) {
     let temp_drawables = state.drawables.clone();
@@ -953,12 +976,21 @@ pub fn draw(state: &mut State) {
     // here is where we draw!!!
     draw_objects(&mut state.fb2d, state.drawables.clone());
 
-    let text = 'k';
-    let size: f32 = 10.0;
+    let text = 's';
+    let text2 = "Hello how are you".to_string();
+    let size: f32 = 18.0;
     let x = 150;
     let y = 10;
 
-    render_character(text, &mut state.fb2d, x, y, size);
+    let r1 = Rect {
+        x: 10,
+        y: 10,
+        w: 100,
+        h: 100,
+    };
+
+    // render_character(text, &mut state.fb2d, x, y, size);
+    draw_text(&mut state.fb2d, text2, r1, 10.0);
 
     // Now we can copy into our buffer.
     {
