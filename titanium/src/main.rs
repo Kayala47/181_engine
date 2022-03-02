@@ -25,6 +25,15 @@ fn main() {
         h: 30,
     };
 
+    let r3 = Rect {
+        x: 150,
+        y: 10,
+        w: 30,
+        h: 40,
+    };
+
+    let mut deck = load_cards_from_file("../cards2.json");
+
     let c1 = (255, 0, 0, 0);
     let c2 = (0, 255, 0, 0);
 
@@ -52,8 +61,12 @@ fn main() {
         (220, 220, 250, 255),
     );
 
+    let played_card = deck.draw_and_remove().play(slots[0].get_rect());
+    let mut played_drawable = vec![played_card.get_drawable()];
+
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut boxes);
+    starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
 
@@ -64,8 +77,6 @@ fn main() {
 
             check_and_handle_drag(&mut state);
             draw(&mut state);
-
-            let deck = load_cards_from_file("../cards2.json");
         }
 
         handle_winit_event(event, control_flow, &mut state);

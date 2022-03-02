@@ -49,6 +49,7 @@ pub type Color = (u8, u8, u8, u8);
 pub type FbCoords = (usize, usize);
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
+const CARD_SIZE: (usize, usize) = (30, 40);
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -115,6 +116,24 @@ impl Card {
             "{} \n \n {} \n \n {} \n\n {}",
             name, stats, attack_block, special_block
         )
+    }
+
+    pub fn play(&self, r: Rect) -> PlayedCard {
+        PlayedCard {
+            card: self.clone(),
+            rect: r,
+        }
+    }
+}
+
+pub struct PlayedCard {
+    card: Card,
+    rect: Rect,
+}
+
+impl PlayedCard {
+    pub fn get_drawable(&self) -> Drawable {
+        Drawable::Text(self.rect, self.card.get_description(), 10.0)
     }
 }
 
@@ -494,13 +513,22 @@ pub enum DraggableSnapType {
     Card(bool, bool),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
+    Text(Rect, String, f32),
 }
 
 impl Drawable {
+    pub fn get_rect(self: &Drawable) -> Rect {
+        match self {
+            Drawable::Rectangle(rect, _, _) => *rect,
+            Drawable::RectOutlined(rect, _, _) => *rect,
+            &Drawable::Text(rect, _, _) => rect,
+        }
+    }
+
     pub fn contains(self: &Drawable, coord: FbCoords) -> bool {
         let (x, y) = coord;
         match self {
@@ -510,6 +538,9 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
+            &Drawable::Text(rect, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
         }
     }
 
@@ -517,6 +548,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
+            &Drawable::Text(rect, _, _) => (rect.x, rect.y),
         }
     }
 
@@ -529,6 +561,10 @@ impl Drawable {
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
             Drawable::RectOutlined(rect, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+            &mut Drawable::Text(mut rect, _, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -546,6 +582,10 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
+            Drawable::Text(rect, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
         }
     }
 
@@ -553,6 +593,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
+            &Drawable::Text(_, _, _) => None,
         }
     }
 
@@ -594,6 +635,9 @@ fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
             }
             Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(fb, r, c);
+            }
+            Drawable::Text(r, s, size) => {
+                draw_text(fb, s, r, size);
             }
         }
     });
@@ -975,22 +1019,6 @@ pub fn draw(state: &mut State) {
 
     // here is where we draw!!!
     draw_objects(&mut state.fb2d, state.drawables.clone());
-
-    let text = 's';
-    let text2 = "Hello how are you".to_string();
-    let size: f32 = 18.0;
-    let x = 150;
-    let y = 10;
-
-    let r1 = Rect {
-        x: 10,
-        y: 10,
-        w: 100,
-        h: 100,
-    };
-
-    // render_character(text, &mut state.fb2d, x, y, size);
-    draw_text(&mut state.fb2d, text2, r1, 10.0);
 
     // Now we can copy into our buffer.
     {
