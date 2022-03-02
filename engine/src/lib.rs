@@ -9,7 +9,8 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
-use fontdue;
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
+use fontdue::Font;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -332,19 +333,18 @@ pub fn generate_deck_slots(
     slot_drawables
 }
 
-pub fn render_character(s: &String, state: &mut State, r: Rect) {
-    assert!(r.x >= 0);
-    assert!(r.x + r.w <= WIDTH);
-    assert!(r.y + r.h <= HEIGHT);
-    assert!(r.y >= 0);
-
+pub fn render_character(
+    c: char,
+    fb: &mut [Color],
+    x: usize,
+    y: usize,
+    size: f32,
+) -> (usize, usize) {
     // WINDOWS
     let font = include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
 
     //MAC
     // let font = include_bytes!("../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
-
-    let size: f32 = 16.0;
 
     let settings = fontdue::FontSettings {
         scale: size,
@@ -353,9 +353,7 @@ pub fn render_character(s: &String, state: &mut State, r: Rect) {
 
     let font = fontdue::Font::from_bytes(font, settings).unwrap();
 
-    let char: char = 'k';
-
-    let (metrics, bitmap) = font.rasterize(char, size);
+    let (metrics, bitmap) = font.rasterize(c, size);
 
     let mut bitmap_rgb: Vec<(u8, u8, u8, u8)> = vec![];
 
@@ -368,19 +366,27 @@ pub fn render_character(s: &String, state: &mut State, r: Rect) {
 
     let mut bit_iter = bitmap_rgb.into_iter();
 
-    for curr_y in (r.y)..(r.y + metrics.height) {
-        for j in (curr_y * WIDTH + r.x)..(curr_y * WIDTH + r.x + metrics.width) {
+    for curr_y in (y)..(y + metrics.height) {
+        for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
             let pixel = bit_iter.next().unwrap();
 
             if pixel.0 == 0 {
+                //skip adding the background!
                 continue;
             }
 
-            state.fb2d[j] = pixel;
+            fb[j] = pixel;
             // state.fb2d[j] = (255 as u8, 255 as u8, 255 as u8, 255 as u8);
         }
     }
+
+    //return these for use in text
+    (metrics.width, metrics.height)
 }
+
+// pub fn text(){
+
+// }
 
 pub fn check_and_handle_drag(state: &mut State) {
     let temp_drawables = state.drawables.clone();
@@ -947,18 +953,12 @@ pub fn draw(state: &mut State) {
     // here is where we draw!!!
     draw_objects(&mut state.fb2d, state.drawables.clone());
 
-    let r3 = Rect {
-        x: 150,
-        y: 10,
-        w: 100,
-        h: 100,
-    };
+    let text = 'k';
+    let size: f32 = 10.0;
+    let x = 150;
+    let y = 10;
 
-    let text = "lkjdsfa".to_string();
-
-    render_character(&text, state, r3);
-
-    // draw_objects(&mut state.fb2d.as_slice()[0], drawables);
+    render_character(text, &mut state.fb2d, x, y, size);
 
     // Now we can copy into our buffer.
     {
