@@ -438,6 +438,49 @@ pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
     }
 }
 
+pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+    let fonts = &[font]; //need to make a list
+
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+
+    let lay_settings = LayoutSettings {
+        x: r.x as f32,
+        y: r.y as f32,
+        max_width: Some(r.w as f32),
+        max_height: Some(r.y as f32),
+        horizontal_align: fontdue::layout::HorizontalAlign::Center,
+        vertical_align: fontdue::layout::VerticalAlign::Bottom,
+        wrap_style: fontdue::layout::WrapStyle::Word,
+        wrap_hard_breaks: true,
+    };
+
+    layout.reset(&lay_settings);
+
+    let mut strings = s.lines();
+
+    let mut all_chars = vec![];
+
+    for line in s.lines() {
+        let new_chars = line.chars();
+
+        for ch in new_chars {
+            all_chars.push(ch);
+        }
+    }
+
+    layout.append(fonts, &TextStyle::new(strings.next().unwrap(), 20.0, 0));
+    layout.append(fonts, &TextStyle::new(strings.next().unwrap(), 12.0, 0));
+
+    let glyphs = layout.glyphs();
+    println!("{:?}", layout.glyphs());
+
+    //check lengths
+
+    for (glpyh, c) in zip(glyphs, all_chars) {
+        //add them in using render character
+    }
+}
+
 pub fn check_and_handle_drag(state: &mut State) {
     let temp_drawables = state.drawables.clone();
     if state.left_mouse_down {
@@ -645,7 +688,7 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
                 rect_outlined(&mut state.fb2d, r, c);
             }
             Drawable::Text(r, s, size) => {
-                draw_text(&mut state.fb2d, s, r, size, &state.font);
+                draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
             }
         }
     });
