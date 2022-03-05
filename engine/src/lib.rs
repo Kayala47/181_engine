@@ -50,6 +50,9 @@ pub type FbCoords = (usize, usize);
 const WIDTH: usize = 320;
 const HEIGHT: usize = 240;
 const CARD_SIZE: (usize, usize) = (30, 40);
+const FONT_SIZE: f32 = 4.0;
+const FONT_DATA: &[u8] =
+    include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -240,6 +243,7 @@ pub struct State {
     pub initial_mouse_down_coords: Option<FbCoords>,
     pub drag_item_id: Option<usize>,
     pub drag_item_initial_coords: Option<FbCoords>,
+    pub font: fontdue::Font,
 }
 
 fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
@@ -352,50 +356,45 @@ pub fn generate_deck_slots(
     slot_drawables
 }
 
+// fn print_to_file(c: char, )
+
 pub fn render_character(
     c: char,
     fb: &mut [Color],
     x: usize,
     y: usize,
     size: f32,
+    font: &Font,
 ) -> (usize, usize) {
     // WINDOWS
-    let font = include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
 
     //MAC
     // let font = include_bytes!("../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
-
-    let settings = fontdue::FontSettings {
-        scale: size,
-        ..fontdue::FontSettings::default()
-    };
-
-    let font = fontdue::Font::from_bytes(font, settings).unwrap();
 
     let (metrics, bitmap) = font.rasterize(c, size);
 
     let mut bitmap_rgb: Vec<(u8, u8, u8, u8)> = vec![];
 
-    // to draw a char at x,y loc with height h and width w, we draw into the framebuffer
-    // starting at y * WIDTH + x and go until (y + h) * WIDTH + x + W
+    // // to draw a char at x,y loc with height h and width w, we draw into the framebuffer
+    // // starting at y * WIDTH + x and go until (y + h) * WIDTH + x + W
 
     for gray in bitmap {
         bitmap_rgb.push((gray, gray, gray, 1));
     }
 
-    let mut bit_iter = bitmap_rgb.into_iter();
+    let mut bit_iter = bitmap_rgb.iter();
 
     for curr_y in (y)..(y + metrics.height) {
         #[allow(clippy::needless_range_loop)]
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
             let pixel = bit_iter.next().unwrap();
 
-            if pixel.0 == 0 {
-                //skip adding the background!
-                continue;
-            }
+            // if pixel.0 == 0 {
+            //     //skip adding the background!
+            //     continue;
+            // }
 
-            fb[j] = pixel;
+            fb[j] = *pixel;
         }
     }
 
@@ -403,30 +402,39 @@ pub fn render_character(
     (metrics.width, metrics.height)
 }
 
-pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32) {
+pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
     //TODO: I would ideally like it to be able to decide it's own size based on the space
     //it has to fill
-    let char_vec: Vec<char> = s.chars().collect();
 
     let mut x = r.x;
     let mut y = r.y;
     let hor_lim = r.x + r.w;
     let ver_lim = r.y + r.h;
+    let mut avg_space = 0;
 
-    for c in char_vec {
-        let (new_w, new_h) = render_character(c, fb, x, y, size);
+    for word in s.split_whitespace() {
+        for c in word.chars() {
+            let (new_w, new_h) = render_character(c, fb, x, y, size, font);
+            avg_space = new_w;
 
-        x += new_w;
+            x += new_w;
 
-        if x >= hor_lim {
-            x = r.x;
-            y += new_h;
+            if c == '\n' {
+                y += avg_space;
+            }
+
+            if x >= hor_lim {
+                x = r.x;
+                y += new_h;
+            }
+
+            if y >= ver_lim {
+                //stop drawing - sucks to suck
+                return;
+            }
         }
 
-        if y >= ver_lim {
-            //stop drawing - sucks to suck
-            return;
-        }
+        x += avg_space;
     }
 }
 
@@ -626,18 +634,18 @@ impl Rect {
     }
 }
 
-fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
+fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
     drawables.into_iter().enumerate().for_each(|(_, obj)| {
         match obj {
             Drawable::Rectangle(r, c, _) => {
                 // println!("rectangle x: {:?}", r.x);
-                rectangle(fb, r, c);
+                rectangle(&mut state.fb2d, r, c);
             }
             Drawable::RectOutlined(r, c, _) => {
-                rect_outlined(fb, r, c);
+                rect_outlined(&mut state.fb2d, r, c);
             }
             Drawable::Text(r, s, size) => {
-                draw_text(fb, s, r, size);
+                draw_text(&mut state.fb2d, s, r, size, &state.font);
             }
         }
     });
@@ -800,6 +808,13 @@ pub fn setup() -> State {
             .build()
             .unwrap()
     };
+
+    // load in the font used for text rendering
+    let font_settings: fontdue::FontSettings = fontdue::FontSettings {
+        scale: FONT_SIZE,
+        ..fontdue::FontSettings::default()
+    };
+    let roboto_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA, font_settings).unwrap();
 
     // We now create a buffer that will store the shape of our triangl
 
@@ -999,6 +1014,7 @@ pub fn setup() -> State {
         initial_mouse_down_coords: None,
         drag_item_id: None,
         drag_item_initial_coords: None,
+        font: roboto_font,
     }
 }
 
@@ -1018,7 +1034,7 @@ pub fn draw(state: &mut State) {
     // clear(&mut state.fb2d.as_slice()[0], state.bg_color);
 
     // here is where we draw!!!
-    draw_objects(&mut state.fb2d, state.drawables.clone());
+    draw_objects(state, state.drawables.clone());
 
     // Now we can copy into our buffer.
     {
