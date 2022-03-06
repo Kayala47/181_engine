@@ -487,7 +487,7 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     }
 
     let glyphs = layout.glyphs();
-    println!("{:?}", layout.glyphs());
+    //println!("{:?}", layout.glyphs());
 
     //check lengths
     let mut x: f32 = r.x as f32;
@@ -1250,6 +1250,7 @@ pub fn handle_winit_event(
                 winit::event::ElementState::Pressed => {
                     // VirtualKeycode is an enum with a defined representation
                     state.now_keys[keycode as usize] = true;
+                    println!("key pressed");
                 }
                 winit::event::ElementState::Released => {
                     state.now_keys[keycode as usize] = false;
@@ -1265,6 +1266,7 @@ pub fn handle_winit_event(
                 },
             window_id: _,
         } => {
+            println!("cursor moved");
             let cursor_x = position.x / state.window_width;
             let cursor_y = position.y / state.window_height;
             state.mouse_coords = (

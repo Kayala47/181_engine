@@ -81,7 +81,6 @@ fn main() {
             check_and_handle_drag(&mut state);
             draw(&mut state);
         }
-
         handle_winit_event(event, control_flow, &mut state);
     });
 }
