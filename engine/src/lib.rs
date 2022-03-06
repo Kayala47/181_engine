@@ -48,8 +48,8 @@ use winit::window::{Window, WindowBuilder};
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
 pub type FbCoords = (usize, usize);
-const WIDTH: usize = 320;
-const HEIGHT: usize = 240;
+const WIDTH: usize = 1920;
+const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
 const FONT_DATA: &[u8] =
@@ -476,16 +476,16 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     for (idx, string) in strings.enumerate() {
         if idx == 0 {
             //Card title should be big
-            layout.append(fonts, &TextStyle::new(string, 8.0, 0));
+            layout.append(fonts, &TextStyle::new(string, 20.0, 0));
         } else {
-            let mut size = 4.0;
+            let mut size = 12.0;
             if subtitle {
-                size = 6.0;
+                size = 16.0;
                 subtitle = !subtitle;
 
                 //should normally be outside this if block
-                layout.append(fonts, &TextStyle::new(string, size, 0));
             }
+            layout.append(fonts, &TextStyle::new(string, size, 0));
         }
     }
 

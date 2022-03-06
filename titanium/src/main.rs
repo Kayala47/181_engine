@@ -5,6 +5,9 @@ use engine::{
 };
 use winit::event_loop::EventLoop;
 
+const WIDTH: usize = 1920;
+const HEIGHT: usize = 1080;
+
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
 struct GameState {
@@ -51,11 +54,11 @@ fn main() {
     ];
 
     let mut slots = generate_deck_slots(
-        (30, 40),
+        (WIDTH / 10, HEIGHT / 6),
         5,
         5,
         5,
-        (255, 30, 255, 255),
+        (0, 0, 0, 255),
         (0, 255, 0, 255),
         (255, 255, 255, 255),
         (220, 220, 250, 255),
