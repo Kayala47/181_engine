@@ -17,6 +17,7 @@ use serde_json;
 use std::cmp::{max, min};
 use std::fs::File;
 use std::io::Read;
+use std::num::Wrapping;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
@@ -384,6 +385,9 @@ pub fn render_character(
 
     let mut bit_iter = bitmap_rgb.iter();
 
+    dbg!(c);
+    dbg!(metrics.width);
+
     for curr_y in (y)..(y + metrics.height) {
         #[allow(clippy::needless_range_loop)]
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
@@ -456,7 +460,7 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
 
     layout.reset(&lay_settings);
 
-    let mut strings = s.lines();
+    let strings = s.lines();
 
     let mut all_chars = vec![];
 
@@ -468,16 +472,45 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
         }
     }
 
-    layout.append(fonts, &TextStyle::new(strings.next().unwrap(), 20.0, 0));
-    layout.append(fonts, &TextStyle::new(strings.next().unwrap(), 12.0, 0));
+    let mut subtitle = true;
+    for (idx, string) in strings.enumerate() {
+        if idx == 0 {
+            //Card title should be big
+            layout.append(fonts, &TextStyle::new(string, 8.0, 0));
+        } else {
+            let mut size = 4.0;
+            if subtitle {
+                size = 6.0;
+                subtitle = !subtitle;
+
+                //should normally be outside this if block
+                layout.append(fonts, &TextStyle::new(string, size, 0));
+            }
+        }
+    }
 
     let glyphs = layout.glyphs();
     println!("{:?}", layout.glyphs());
 
     //check lengths
+    let mut x: f32 = r.x as f32;
 
-    for (glpyh, c) in zip(glyphs, all_chars) {
-        //add them in using render character
+    let mut y: f32 = r.y as f32;
+
+    for (idx, glyph) in glyphs.iter().enumerate() {
+        let c = glyph.parent;
+
+        let mut delta_x: f32 = 0.0;
+        let mut delta_y: f32 = 0.0;
+
+        if idx > 0 {
+            delta_x = glyph.x - glyphs[idx - 1].x;
+            delta_y = glyph.y - glyphs[idx - 1].y;
+        }
+        x += delta_x;
+        y += delta_y;
+
+        render_character(c, fb, x as usize, y as usize, glyph.key.px, fonts[0]);
     }
 }
 

@@ -61,7 +61,7 @@ fn main() {
         (220, 220, 250, 255),
     );
 
-    let played_card = deck.draw_and_remove().play(slots[0].get_rect());
+    let played_card = deck.draw_and_remove().play(slots[2].get_rect());
     let mut played_drawable = vec![played_card.get_drawable()];
 
     starting_game_objects.append(&mut slots);
