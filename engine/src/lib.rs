@@ -9,12 +9,15 @@
 // notice may not be copied, modified, or distributed except
 // according to those terms.
 
+use fontdue::layout::{CoordinateSystem, Layout, LayoutSettings, TextStyle};
+use fontdue::Font;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::cmp::{max, min};
 use std::fs::File;
 use std::io::Read;
+use std::num::Wrapping;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
@@ -45,8 +48,12 @@ use winit::window::{Window, WindowBuilder};
 // We'll make our Color type an RGBA8888 pixel.
 pub type Color = (u8, u8, u8, u8);
 pub type FbCoords = (usize, usize);
-const WIDTH: usize = 320;
-const HEIGHT: usize = 240;
+const WIDTH: usize = 1920;
+const HEIGHT: usize = 1080;
+const CARD_SIZE: (usize, usize) = (30, 40);
+const FONT_SIZE: f32 = 4.0;
+const FONT_DATA: &[u8] =
+    include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -113,6 +120,24 @@ impl Card {
             "{} \n \n {} \n \n {} \n\n {}",
             name, stats, attack_block, special_block
         )
+    }
+
+    pub fn play(&self, r: Rect) -> PlayedCard {
+        PlayedCard {
+            card: self.clone(),
+            rect: r,
+        }
+    }
+}
+
+pub struct PlayedCard {
+    card: Card,
+    rect: Rect,
+}
+
+impl PlayedCard {
+    pub fn get_drawable(&self) -> Drawable {
+        Drawable::Text(self.rect, self.card.get_description(), 10.0)
     }
 }
 
@@ -219,6 +244,7 @@ pub struct State {
     pub initial_mouse_down_coords: Option<FbCoords>,
     pub drag_item_id: Option<usize>,
     pub drag_item_initial_coords: Option<FbCoords>,
+    pub font: fontdue::Font,
 }
 
 fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
@@ -274,7 +300,6 @@ pub fn generate_deck_slots(
         spacer_background_color,
         None,
     );
-
 
     let mut slot_drawables: Vec<Drawable> = vec![container];
     let card_y = HEIGHT - card_height - (card_padding_bottom);
@@ -332,6 +357,163 @@ pub fn generate_deck_slots(
     slot_drawables
 }
 
+// fn print_to_file(c: char, )
+
+pub fn render_character(
+    c: char,
+    fb: &mut [Color],
+    x: usize,
+    y: usize,
+    size: f32,
+    font: &Font,
+) -> (usize, usize) {
+    // WINDOWS
+
+    //MAC
+    // let font = include_bytes!("../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+
+    let (metrics, bitmap) = font.rasterize(c, size);
+
+    let mut bitmap_rgb: Vec<(u8, u8, u8, u8)> = vec![];
+
+    // // to draw a char at x,y loc with height h and width w, we draw into the framebuffer
+    // // starting at y * WIDTH + x and go until (y + h) * WIDTH + x + W
+
+    for gray in bitmap {
+        bitmap_rgb.push((gray, gray, gray, 1));
+    }
+
+    let mut bit_iter = bitmap_rgb.iter();
+
+    dbg!(c);
+    dbg!(metrics.width);
+
+    for curr_y in (y)..(y + metrics.height) {
+        #[allow(clippy::needless_range_loop)]
+        for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
+            let pixel = bit_iter.next().unwrap();
+
+            // if pixel.0 == 0 {
+            //     //skip adding the background!
+            //     continue;
+            // }
+
+            fb[j] = *pixel;
+        }
+    }
+
+    //return these for use in text
+    (metrics.width, metrics.height)
+}
+
+pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+    //TODO: I would ideally like it to be able to decide it's own size based on the space
+    //it has to fill
+
+    let mut x = r.x;
+    let mut y = r.y;
+    let hor_lim = r.x + r.w;
+    let ver_lim = r.y + r.h;
+    let mut avg_space = 0;
+
+    for word in s.split_whitespace() {
+        for c in word.chars() {
+            let (new_w, new_h) = render_character(c, fb, x, y, size, font);
+            avg_space = new_w;
+
+            x += new_w;
+
+            if c == '\n' {
+                y += avg_space;
+            }
+
+            if x >= hor_lim {
+                x = r.x;
+                y += new_h;
+            }
+
+            if y >= ver_lim {
+                //stop drawing - sucks to suck
+                return;
+            }
+        }
+
+        x += avg_space;
+    }
+}
+
+pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+    let fonts = &[font]; //need to make a list
+
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+
+    let lay_settings = LayoutSettings {
+        x: r.x as f32,
+        y: r.y as f32,
+        max_width: Some(r.w as f32),
+        max_height: Some(r.y as f32),
+        horizontal_align: fontdue::layout::HorizontalAlign::Center,
+        vertical_align: fontdue::layout::VerticalAlign::Bottom,
+        wrap_style: fontdue::layout::WrapStyle::Word,
+        wrap_hard_breaks: true,
+    };
+
+    layout.reset(&lay_settings);
+
+    let strings = s.lines();
+
+    let mut all_chars = vec![];
+
+    for line in s.lines() {
+        let new_chars = line.chars();
+
+        for ch in new_chars {
+            all_chars.push(ch);
+        }
+    }
+
+    let mut subtitle = true;
+    for (idx, string) in strings.enumerate() {
+        if idx == 0 {
+            //Card title should be big
+            layout.append(fonts, &TextStyle::new(string, 20.0, 0));
+        } else {
+            let mut size = 12.0;
+            if subtitle {
+                size = 16.0;
+                subtitle = !subtitle;
+
+                //should normally be outside this if block
+            }
+            layout.append(fonts, &TextStyle::new(string, size, 0));
+        }
+    }
+
+    let glyphs = layout.glyphs();
+    println!("{:?}", layout.glyphs());
+
+    //check lengths
+    let mut x: f32 = r.x as f32;
+
+    let mut y: f32 = r.y as f32;
+
+    for (idx, glyph) in glyphs.iter().enumerate() {
+        let c = glyph.parent;
+
+        let mut delta_x: f32 = 0.0;
+        let mut delta_y: f32 = 0.0;
+
+        if idx > 0 {
+            delta_x = glyph.x - glyphs[idx - 1].x;
+            delta_y = glyph.y - glyphs[idx - 1].y;
+        }
+        x += delta_x;
+        y += delta_y;
+
+        render_character(c, fb, x as usize, y as usize, glyph.key.px, fonts[0]);
+    }
+}
+
 pub fn check_and_handle_drag(state: &mut State) {
     let temp_drawables = state.drawables.clone();
     if state.left_mouse_down {
@@ -341,7 +523,7 @@ pub fn check_and_handle_drag(state: &mut State) {
                 .rev()
                 .enumerate()
                 .find(|(_, item)| item.contains(state.mouse_coords) && item.is_draggable());
-            
+
             if let Some((index, item)) = dragged_item {
                 state.drag_item_id = Some((temp_drawables.len() - 1) - index);
                 state.drag_item_initial_coords = Some(item.get_coords());
@@ -378,14 +560,13 @@ pub fn check_and_handle_drag(state: &mut State) {
     ) {
         // release
         let dragged = &mut state.drawables[index];
-         
+
         // item to snap to
         let release_item = temp_drawables
-                .iter()
-                .rev()
-                .find(|item| item.contains(state.mouse_coords) && item.is_releasable(dragged));
+            .iter()
+            .rev()
+            .find(|item| item.contains(state.mouse_coords) && item.is_releasable(dragged));
 
-        
         if let Some(item) = release_item {
             dragged.move_to(item.get_coords())
         } else {
@@ -416,13 +597,22 @@ pub enum DraggableSnapType {
     Card(bool, bool),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
+    Text(Rect, String, f32),
 }
 
 impl Drawable {
+    pub fn get_rect(self: &Drawable) -> Rect {
+        match self {
+            Drawable::Rectangle(rect, _, _) => *rect,
+            Drawable::RectOutlined(rect, _, _) => *rect,
+            &Drawable::Text(rect, _, _) => rect,
+        }
+    }
+
     pub fn contains(self: &Drawable, coord: FbCoords) -> bool {
         let (x, y) = coord;
         match self {
@@ -432,6 +622,9 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
+            &Drawable::Text(rect, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
         }
     }
 
@@ -439,6 +632,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
+            &Drawable::Text(rect, _, _) => (rect.x, rect.y),
         }
     }
 
@@ -451,6 +645,10 @@ impl Drawable {
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
             Drawable::RectOutlined(rect, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+            &mut Drawable::Text(mut rect, _, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -468,30 +666,27 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
+            Drawable::Text(rect, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
         }
     }
 
     pub fn get_drag_type(self: &Drawable) -> Option<DraggableSnapType> {
         match self {
-            Drawable::Rectangle(_, _, drag_type) => {
-                *drag_type
-            },
-            Drawable::RectOutlined(_, _, drag_type) => {
-                *drag_type
-            },
+            Drawable::Rectangle(_, _, drag_type) => *drag_type,
+            Drawable::RectOutlined(_, _, drag_type) => *drag_type,
+            &Drawable::Text(_, _, _) => None,
         }
-    } 
+    }
 
     pub fn is_draggable(self: &Drawable) -> bool {
         let drag_type = self.get_drag_type();
 
         match drag_type {
-            Some(DraggableSnapType::Card(draggable,_)) => {
-                draggable
-            },
-            _ => {
-                false
-            }
+            Some(DraggableSnapType::Card(draggable, _)) => draggable,
+            _ => false,
         }
     }
 
@@ -499,15 +694,14 @@ impl Drawable {
         let drag_type = draggable.get_drag_type().unwrap();
         let release_type = self.get_drag_type();
         match drag_type {
-            DraggableSnapType::Card(_,_) => {
-                if let Some(DraggableSnapType::Card(_,true)) = release_type {
-                    return true
+            DraggableSnapType::Card(_, _) => {
+                if let Some(DraggableSnapType::Card(_, true)) = release_type {
+                    return true;
                 }
                 false
             }
         }
     }
-
 }
 
 impl Rect {
@@ -516,15 +710,18 @@ impl Rect {
     }
 }
 
-fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
+fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
     drawables.into_iter().enumerate().for_each(|(_, obj)| {
         match obj {
             Drawable::Rectangle(r, c, _) => {
                 // println!("rectangle x: {:?}", r.x);
-                rectangle(fb, r, c);
+                rectangle(&mut state.fb2d, r, c);
             }
             Drawable::RectOutlined(r, c, _) => {
-                rect_outlined(fb, r, c);
+                rect_outlined(&mut state.fb2d, r, c);
+            }
+            Drawable::Text(r, s, size) => {
+                draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
             }
         }
     });
@@ -535,14 +732,6 @@ fn draw_objects(fb: &mut [Color], drawables: Vec<Drawable>) {
 pub fn clear(fb: &mut [Color], c: Color) {
     fb.fill(c);
 }
-
-// #[allow(dead_code)]
-// fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
-//     assert!(y < HEIGHT);
-//     assert!(x0 <= x1);
-//     assert!(x1 < WIDTH);
-//     fb[y * WIDTH + x0..(y * WIDTH + x1)].fill(c);
-// }
 
 #[allow(dead_code)]
 fn line(fb: &mut [Color], x0: usize, x1: usize, y: usize, c: Color) {
@@ -695,6 +884,13 @@ pub fn setup() -> State {
             .build()
             .unwrap()
     };
+
+    // load in the font used for text rendering
+    let font_settings: fontdue::FontSettings = fontdue::FontSettings {
+        scale: FONT_SIZE,
+        ..fontdue::FontSettings::default()
+    };
+    let roboto_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA, font_settings).unwrap();
 
     // We now create a buffer that will store the shape of our triangl
 
@@ -894,6 +1090,7 @@ pub fn setup() -> State {
         initial_mouse_down_coords: None,
         drag_item_id: None,
         drag_item_initial_coords: None,
+        font: roboto_font,
     }
 }
 
@@ -913,8 +1110,7 @@ pub fn draw(state: &mut State) {
     // clear(&mut state.fb2d.as_slice()[0], state.bg_color);
 
     // here is where we draw!!!
-    draw_objects(&mut state.fb2d, state.drawables.clone());
-    // draw_objects(&mut state.fb2d.as_slice()[0], drawables);
+    draw_objects(state, state.drawables.clone());
 
     // Now we can copy into our buffer.
     {
