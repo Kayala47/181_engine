@@ -385,9 +385,6 @@ pub fn render_character(
 
     let mut bit_iter = bitmap_rgb.iter();
 
-    dbg!(c);
-    dbg!(metrics.width);
-
     for curr_y in (y)..(y + metrics.height) {
         #[allow(clippy::needless_range_loop)]
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
