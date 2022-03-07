@@ -378,8 +378,8 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            (slot_background_color),
-            Some(DraggableSnapType::Card(true, false)),
+            slot_background_color,
+            None,
         );
         let top_card_slot_frame = Drawable::RectOutlined(
             Rect {
@@ -666,7 +666,7 @@ pub struct Rect {
 #[derive(Copy, Clone)]
 pub enum DraggableSnapType {
     Card(bool, bool),
-    // PlayedCard(bool, bool),
+    PlayedCard(bool, bool),
 }
 
 #[derive(Clone)]
@@ -758,6 +758,7 @@ impl Drawable {
 
         match drag_type {
             Some(DraggableSnapType::Card(draggable, _)) => draggable,
+            Some(DraggableSnapType::PlayedCard(draggable, _)) => draggable,
             _ => false,
         }
     }
@@ -768,6 +769,12 @@ impl Drawable {
         match drag_type {
             DraggableSnapType::Card(_, _) => {
                 if let Some(DraggableSnapType::Card(_, true)) = release_type {
+                    return true;
+                }
+                false
+            }
+            DraggableSnapType::PlayedCard(_, _) => {
+                if let Some(DraggableSnapType::PlayedCard(_, true)) = release_type {
                     return true;
                 }
                 false
