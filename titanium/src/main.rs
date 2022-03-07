@@ -21,8 +21,8 @@ struct GameState {
 fn main() {
     let mut turn: usize = 0;
 
-    let mut p1_mana: usize = 0;
-    let mut p2_mana: usize = 0;
+    let mut p1_mana: usize = 5;
+    let mut p2_mana: usize = 5;
 
     let mut deck1 = load_cards_from_file("../cards2.json");
     deck1.shuffle();
@@ -110,17 +110,6 @@ fn main() {
         match event {
             Event::MainEventsCleared => {
                 state.bg_color = BACKGROUND_COLOR;
-                // let mut new_objects = game_objects.clone();
-
-                //not necessary? resets movement :/
-                // state.drawables = vec![];
-                // state.drawables.append(&mut slots.clone());
-                // state.drawables.append(&mut boxes.clone());
-                // state.drawables.append(&mut battle_slots.clone());
-
-                // played_cards
-                //     .iter()
-                //     .for_each(|card| state.drawables.push(card.get_drawable()));
 
                 check_and_handle_drag(&mut state);
                 draw(&mut state);
@@ -145,8 +134,11 @@ fn main() {
                     // VirtualKeycode is an enum with a defined representation
                     // state.now_keys[virtual_keycode as usize] = true;
                     turn += 1;
-                    dbg!(turn);
-                    println!("key pressed");
+                    if turn % 2 == 0 {
+                        //next turn, gain more mana
+                        p1_mana += 5;
+                        p2_mana += 5;
+                    }
                 }
             }
             Event::WindowEvent {
@@ -166,16 +158,20 @@ fn main() {
             } => {
                 // It also binds these handy variable names!
                 if key_state == winit::event::ElementState::Pressed {
-                    (p1_mana, p2_mana) = handle_mana((p1_mana, p2_mana), -1, turn);
+                    dbg!("down pressed");
+                    // let mana_results = handle_mana((p1_mana, p2_mana), -1.0 as usize, turn);
+                    
+                    if turn % 2 == 0{
+                        p1_mana -= 1;
+                    }else{
+                        p2_mana -= 1;
+                    }
+                    
                 }
             }
             _ => handle_winit_event(event, control_flow, &mut state),
         }
 
-        if turn % 2 == 0 {
-            //next turn, gain more mana
-            p1_mana += 5;
-            p2_mana += 5;
-        }
+        
     });
 }

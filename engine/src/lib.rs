@@ -899,8 +899,8 @@ fn line_bresenham(
     }
 }
 
-pub fn handle_mana(curr_manas: (usize, usize), delta: usize, turn: usize) {
-    let (p1_mana, p2_mana) = curr_manas;
+pub fn handle_mana(curr_manas: (usize, usize), delta: usize, turn: usize) -> (usize, usize) {
+    let  (mut p1_mana, mut p2_mana) = curr_manas;
 
     if turn % 2 == 0 {
         // p1
