@@ -66,16 +66,18 @@ vulkano::impl_vertex!(Vertex, position, uv);
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
     pub name: String,
-    playCost: usize,
-    health: usize,
-    defense: usize,
-    passiveCost: usize,
-    specialCost: usize,
-    specialTag: String,
-    special: String, //should be a function somehow
-    attack: usize,
-    attackTag: String,
-    specialAttribute: String,
+    pub playCost: usize,
+    pub health: usize,
+    pub defense: usize,
+    pub passiveCost: usize,
+    pub specialCost: usize,
+    pub specialTag: String,
+    pub special: String, //should be a function somehow
+    pub attack: usize,
+    pub attackTag: String,
+    pub specialAttribute: String,
+    pub speed: usize,
+    pub attack_speed: usize // lower = better, in milliseconds
 }
 
 impl Drop for Card {

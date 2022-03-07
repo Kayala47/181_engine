@@ -12,10 +12,6 @@ const HEIGHT: usize = 1080;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
-struct GameState {
-    dragged: String,
-}
-
 pub struct PlayedCard {
     pub card: Card,
     pub rect: Rect,
@@ -38,6 +34,10 @@ pub struct Card {
 fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
     let offset = id * 20;
     Rect {x: og_spawn.x, y: (og_spawn.y + offset) % 200 + og_spawn.y , w: og_spawn.w, h: og_spawn.h}
+}
+
+fn attack_tower(unit: engine::Unit, attack_cooldown: std::time::Instant) {
+    let dmg = unit.played_card.card.attack;
 }
 
 fn main() {
