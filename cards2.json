@@ -12,7 +12,9 @@
             "attack": 1,
             "attackTag": "Sacred Flame \n Toss a mote of radiant light at a foe",
             "specialAttribute": "",
-            "soundEffect": ""
+            "soundEffect": "",
+            "speed": 5,
+            "attackSpeed": 350
         },
         {
             "name": "Kleitos",
@@ -26,7 +28,9 @@
             "attack": 3,
             "attackTag": "Swing with the mighty Wolfblade",
             "specialAttribute": "Tireless warrior: no upkeep cost",
-            "soundEffect": ""
+            "soundEffect": "",
+            "speed": 7,
+            "attackSpeed": 300
         },
         {
             "name": "Varim Ironmaw",
@@ -40,7 +44,9 @@
             "attack": 1,
             "attackTag": "",
             "specialAttribute": "Iron Armor: \n All sources deal 1 less damage to the Ironmaw",
-            "soundEffect": ""
+            "soundEffect": "",
+            "speed": 4,
+            "attackSpeed": 670
         },
         {
             "name": "Arlo Bilberry",
@@ -54,7 +60,9 @@
             "attack": 1,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Yawn"
+            "soundEffect": "Yawn",
+            "speed": 3,
+            "attackSpeed": 350
         },
         {
             "name": "Rhogar Whiteclaw",
@@ -68,7 +76,9 @@
             "attack": 4,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Roar"
+            "soundEffect": "Roar",
+            "speed": 9,
+            "attackSpeed": 350
         },
         {
             "name": "Thagnos Firebrand",
@@ -82,7 +92,9 @@
             "attack": 2,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Burn"
+            "soundEffect": "Burn",
+            "speed": 15,
+            "attackSpeed": 500
         },
         {
             "name": "Melthrax",
@@ -96,7 +108,9 @@
             "attack": 3,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Roar"
+            "soundEffect": "Roar",
+            "speed": 5,
+            "attackSpeed": 400
         },
         {
             "name": "Berman Protocol",
@@ -110,7 +124,9 @@
             "attack": 0,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Heal"
+            "soundEffect": "Heal",
+            "speed": 5,
+            "attackSpeed": 1000
         },
         {
             "name": "Dr. Vaugn Von Oe",
@@ -124,7 +140,9 @@
             "attack": 1,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Heal"
+            "soundEffect": "Heal",
+            "speed": 5,
+            "attackSpeed": 500
         },
         {
             "name": "Ayalan Accord",
@@ -138,7 +156,9 @@
             "attack": 0,
             "attackTag": "",
             "specialAttribute": "",
-            "soundEffect": "Heal"
+            "soundEffect": "Heal",
+            "speed": 5,
+            "attackSpeed": 1000
         }
     ]
 }

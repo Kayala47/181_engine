@@ -77,7 +77,7 @@ pub struct Card {
     pub attackTag: String,
     pub specialAttribute: String,
     pub speed: usize,
-    pub attack_speed: usize // lower = better, in milliseconds
+    pub attackSpeed: usize // lower = better, in milliseconds
 }
 
 impl Drop for Card {
