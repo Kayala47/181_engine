@@ -1,7 +1,7 @@
 use engine::{
     check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots,
     handle_winit_event, load_cards_from_file, render_character, setup, Color, DraggableSnapType,
-    Drawable, Event, PlayedCard, Rect, VirtualKeyCode,
+    Drawable, Event, PlayedCard, Rect, VirtualKeyCode, WindowEvent,
 };
 use winit::event_loop::EventLoop;
 
@@ -19,25 +19,7 @@ struct GameState {
 }
 
 fn main() {
-    let r1 = Rect {
-        x: 10,
-        y: 10,
-        w: 100,
-        h: 100,
-    };
-    let r2 = Rect {
-        x: 150,
-        y: 150,
-        w: 30,
-        h: 30,
-    };
-
-    let r3 = Rect {
-        x: 150,
-        y: 10,
-        w: 30,
-        h: 40,
-    };
+    let mut turn = 0;
 
     let mut deck1 = load_cards_from_file("../cards2.json");
     deck1.shuffle();
@@ -136,6 +118,35 @@ fn main() {
 
                 check_and_handle_drag(&mut state);
                 draw(&mut state);
+            }
+            Event::WindowEvent {
+                // Note this deeply nested pattern match
+                event:
+                    WindowEvent::KeyboardInput {
+                        input:
+                            winit::event::KeyboardInput {
+                                // Which serves to filter out only events we actually want
+                                virtual_keycode: Some(VirtualKeyCode::Space),
+                                state: key_state,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => {
+                // It also binds these handy variable names!
+                match key_state {
+                    winit::event::ElementState::Pressed => {
+                        // VirtualKeycode is an enum with a defined representation
+                        // state.now_keys[virtual_keycode as usize] = true;
+                        turn += 1;
+                        dbg!(turn);
+                        println!("key pressed");
+                    }
+                    winit::event::ElementState::Released => {
+                        // state.now_keys[virtual_keycode as usize] = false;
+                    }
+                }
             }
             _ => handle_winit_event(event, control_flow, &mut state),
         }
