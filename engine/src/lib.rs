@@ -136,7 +136,12 @@ pub struct PlayedCard {
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
-        Drawable::Text(self.rect, self.card.get_description(), 10.0)
+        Drawable::Text(
+            self.rect,
+            self.card.get_description(),
+            10.0,
+            Some(DraggableSnapType::Card(false, true)),
+        )
     }
 }
 
@@ -744,7 +749,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
-            &Drawable::Text(_, _, _, drag_type) => *drag_type,
+            &Drawable::Text(_, _, _, drag_type) => drag_type,
         }
     }
 
@@ -787,7 +792,7 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(&mut state.fb2d, r, c);
             }
-            Drawable::Text(r, s, size) => {
+            Drawable::Text(r, s, size, _) => {
                 draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
             }
         }
