@@ -53,7 +53,7 @@ const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
 const FONT_DATA: &[u8] =
-    include_bytes!("..\\..\\resources\\fonts\\RobotoMono-Regular.ttf") as &[u8];
+    include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -290,23 +290,55 @@ pub fn generate_deck_slots(
     assert!(card_width * (num_slots + 1) < WIDTH);
 
     let spacer_width = calculate_card_spacer_width(card_size, num_slots); // 3 represents double space between last card and deck, plus space to right of deck
-    let container = Drawable::Rectangle(
+    let top_container = Drawable::Rectangle(
+        Rect {
+            x: 0,
+            y: 0,
+            w: WIDTH,
+            h: card_height + card_padding_top + card_padding_bottom,
+        },
+        spacer_background_color,
+        None,
+    );
+    
+    let bottom_container = Drawable::Rectangle(
         Rect {
             x: 0,
             y: HEIGHT - card_height - (card_padding_bottom + card_padding_top),
             w: WIDTH,
-            h: HEIGHT - card_height - card_padding_bottom,
+            h: card_height + card_padding_top + card_padding_bottom,
         },
         spacer_background_color,
         None,
     );
 
-    let mut slot_drawables: Vec<Drawable> = vec![container];
+    let mut slot_drawables: Vec<Drawable> = vec![top_container, bottom_container];
     let card_y = HEIGHT - card_height - (card_padding_bottom);
 
     (1..num_slots + 1).for_each(|slot| {
         let card_x = slot * spacer_width + (slot - 1) * card_width;
-        let card_slot_background = Drawable::Rectangle(
+        let top_card_slot_background = Drawable::Rectangle(
+            Rect {
+                x: card_x,
+                y: card_padding_top,
+                w: card_width,
+                h: card_height,
+            },
+            slot_background_color,
+            None,
+        );
+        let top_card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y: card_padding_bottom,
+                w: card_width,
+                h: card_height,
+            },
+            slot_border_color,
+            Some(DraggableSnapType::Card(false, true)),
+        );
+
+        let bottom_card_slot_background = Drawable::Rectangle(
             Rect {
                 x: card_x,
                 y: card_y,
@@ -316,7 +348,7 @@ pub fn generate_deck_slots(
             slot_background_color,
             None,
         );
-        let card_slot_frame = Drawable::RectOutlined(
+        let bottom_card_slot_frame = Drawable::RectOutlined(
             Rect {
                 x: card_x,
                 y: card_y,
@@ -326,34 +358,57 @@ pub fn generate_deck_slots(
             slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
-        slot_drawables.push(card_slot_background);
-        slot_drawables.push(card_slot_frame);
+        slot_drawables.push(top_card_slot_background);
+        slot_drawables.push(top_card_slot_frame);
+        slot_drawables.push(bottom_card_slot_background);
+        slot_drawables.push(bottom_card_slot_frame);
     });
 
     let deck_slot_x = (num_slots + 2) * spacer_width + num_slots * card_width;
-    let deck_slot_y = card_y;
-    let deck_slot_background = Drawable::Rectangle(
+    let top_deck_slot_background = Drawable::Rectangle(
         Rect {
             x: deck_slot_x,
-            y: deck_slot_y,
+            y: card_padding_top,
             w: card_width,
             h: card_height,
         },
         deck_slot_background_color,
         None,
     );
-    let deck_slot_frame = Drawable::RectOutlined(
+    let top_deck_slot_frame = Drawable::RectOutlined(
         Rect {
             x: deck_slot_x,
-            y: deck_slot_y,
+            y: card_padding_top,
             w: card_width,
             h: card_height,
         },
         slot_border_color,
         Some(DraggableSnapType::Card(false, true)),
     );
-    slot_drawables.push(deck_slot_background);
-    slot_drawables.push(deck_slot_frame);
+    let bottom_deck_slot_background = Drawable::Rectangle(
+        Rect {
+            x: deck_slot_x,
+            y: card_y,
+            w: card_width,
+            h: card_height,
+        },
+        deck_slot_background_color,
+        None,
+    );
+    let bottom_deck_slot_frame = Drawable::RectOutlined(
+        Rect {
+            x: deck_slot_x,
+            y: card_y,
+            w: card_width,
+            h: card_height,
+        },
+        slot_border_color,
+        Some(DraggableSnapType::Card(false, true)),
+    );
+    slot_drawables.push(top_deck_slot_background);
+    slot_drawables.push(top_deck_slot_frame);
+    slot_drawables.push(bottom_deck_slot_background);
+    slot_drawables.push(bottom_deck_slot_frame);
     slot_drawables
 }
 
@@ -487,7 +542,7 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     }
 
     let glyphs = layout.glyphs();
-    println!("{:?}", layout.glyphs());
+    // println!("{:?}", layout.glyphs());
 
     //check lengths
     let mut x: f32 = r.x as f32;
@@ -814,6 +869,8 @@ fn window_size_dependent_setup(
     viewport.dimensions = [dimensions[0] as f32, dimensions[1] as f32];
     let mut window_width = dimensions[0].into();
     let mut window_height = dimensions[1].into();
+
+    println!{"window width: {:?}", window_width};
     (
         images
             .iter()
@@ -1271,7 +1328,28 @@ pub fn handle_winit_event(
                 (cursor_x * WIDTH as f64) as usize,
                 (cursor_y * HEIGHT as f64) as usize,
             );
-        }
+        },
+        // closest thing to working for Windows :(
+        // Event::DeviceEvent { event, .. } => match event {
+        //     winit::event::DeviceEvent::Button {
+        //         button: _,
+        //         state: state_of_this,
+        //     } => {
+        //         state.left_mouse_down = state_of_this == winit::event::ElementState::Pressed;
+        //     }
+        //     winit::event::DeviceEvent::MouseMotion { delta } => {
+        //         state.prev_mouse_coords = state.mouse_coords;
+        //         let (delta_x, delta_y) = delta;
+
+        //         dbg!(delta);
+        //         state.mouse_coords = (
+        //             (state.mouse_coords.0 as f64 + delta_x) as usize,
+        //             (state.mouse_coords.1 as f64 + delta_y) as usize,
+        //         );
+        //     }
+        //     _ => {}
+        // },
+
         Event::WindowEvent {
             event:
                 WindowEvent::MouseInput {
@@ -1285,7 +1363,8 @@ pub fn handle_winit_event(
             if button == winit::event::MouseButton::Left {
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
-        }
+        },
+        
         _ => {}
     }
 }

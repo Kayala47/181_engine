@@ -73,8 +73,8 @@ fn main() {
 
     state.drawables = starting_game_objects.clone();
 
-    event_loop.run(move |event, _, control_flow| {
-        if event == Event::MainEventsCleared {
+    event_loop.run(move |event1, _, control_flow| {
+        if event1 == Event::MainEventsCleared {
             state.bg_color = BACKGROUND_COLOR;
             // let mut new_objects = game_objects.clone();
 
@@ -82,6 +82,6 @@ fn main() {
             draw(&mut state);
         }
 
-        handle_winit_event(event, control_flow, &mut state);
+        handle_winit_event(event1, control_flow, &mut state);
     });
 }
