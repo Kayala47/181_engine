@@ -79,23 +79,19 @@ fn main() {
 
     let mut played_drawables = vec![];
 
-    // for d: Drawable::Rectangle(_, _, _) in p1_deck_slots.collect() {
-    //     played_drawables.push(deck1.draw_and_remove().play(d.get_rect()).get_drawable());
-    // }
-
-    // for (p1, p2) in zip(p1_deck_slots.iter(), p2_deck_slots.iter()) {
-    //     played_drawables.push(deck1.draw_and_remove().play(p1.get_rect()).get_drawable());
-
-    //     played_drawables.push(deck2.draw_and_remove().play(p2.get_rect()).get_drawable());
-    // }
 
     for _ in 0..5 {
+
+        let slot = p1_deck_slots.next().unwrap();
+
         played_drawables.push(
             deck1
                 .draw_and_remove()
-                .play(p1_deck_slots.next().unwrap().get_rect())
+                .play(slot.get_rect())
                 .get_drawable(),
         );
+        // dbg!(played_drawables[played_drawables.len() - 1].get_coords());
+        // dbg!(slot.get_coords());
 
         played_drawables.push(
             deck2

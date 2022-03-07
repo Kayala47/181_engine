@@ -323,7 +323,7 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            slot_background_color,
+            (slot_background_color),
             None,
         );
         let top_card_slot_frame = Drawable::RectOutlined(
@@ -333,7 +333,7 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            slot_border_color,
+            (255, 0, 0, 0),
             Some(DraggableSnapType::Card(false, true)),
         );
 
@@ -354,7 +354,7 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            slot_border_color,
+            (255, 0, 0, 0),
             Some(DraggableSnapType::Card(false, true)),
         );
         slot_drawables.push(top_card_slot_background);
@@ -498,6 +498,8 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
 
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
 
+    
+
     let lay_settings = LayoutSettings {
         x: r.x as f32,
         y: r.y as f32,
@@ -527,7 +529,7 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     for (idx, string) in strings.enumerate() {
         if idx == 0 {
             //Card title should be big
-            layout.append(fonts, &TextStyle::new(string, 24.0, 0));
+            layout.append(fonts, &TextStyle::new(string, 16.0, 0));
         } else {
             let mut size = 14.0;
             if subtitle {
@@ -1323,7 +1325,6 @@ pub fn handle_winit_event(
                 },
             window_id: _,
         } => {
-            println!("cursor moved");
             let cursor_x = position.x / state.window_width;
             let cursor_y = position.y / state.window_height;
             state.mouse_coords = (
