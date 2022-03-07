@@ -51,6 +51,7 @@ pub type FbCoords = (usize, usize);
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
+const CARD_COLOR: (u8, u8, u8, u8) = (0, 0, 0, 255);
 const FONT_SIZE: f32 = 4.0;
 const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 
@@ -136,10 +137,10 @@ pub struct PlayedCard {
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
-        Drawable::Text(
+        Drawable::PlayedCard(
             self.rect,
             self.card.get_description(),
-            10.0,
+            CARD_COLOR,
             Some(DraggableSnapType::PlayedCard(false, true)),
         )
     }
@@ -674,6 +675,7 @@ pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
     Text(Rect, String, f32, Option<DraggableSnapType>),
+    PlayedCard(Rect, String, Color, Option<DraggableSnapType>),
 }
 
 impl Drawable {
@@ -682,6 +684,7 @@ impl Drawable {
             Drawable::Rectangle(rect, _, _) => *rect,
             Drawable::RectOutlined(rect, _, _) => *rect,
             &Drawable::Text(rect, _, _, _) => rect,
+            Drawable::PlayedCard(rect, _, _, _) => *rect,
         }
     }
 
@@ -697,6 +700,9 @@ impl Drawable {
             &Drawable::Text(rect, _, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
+            Drawable::PlayedCard(rect, _, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
         }
     }
 
@@ -705,6 +711,7 @@ impl Drawable {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
             &Drawable::Text(rect, _, _, _) => (rect.x, rect.y),
+            Drawable::PlayedCard(rect, _, _, _) => (rect.x, rect.y),
         }
     }
 
@@ -721,6 +728,10 @@ impl Drawable {
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
             &mut Drawable::Text(mut rect, _, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+            Drawable::PlayedCard(rect, _, _, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -742,6 +753,10 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
+            Drawable::PlayedCard(rect, _, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
         }
     }
 
@@ -750,6 +765,7 @@ impl Drawable {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
             &Drawable::Text(_, _, _, drag_type) => drag_type,
+            Drawable::PlayedCard(_, _, _, drag_type) => *drag_type,
         }
     }
 
@@ -801,6 +817,10 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             }
             Drawable::Text(r, s, size, _) => {
                 draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
+            }
+            Drawable::PlayedCard(r, s, c, _) => {
+                rectangle(&mut state.fb2d, r, c);
+                draw_layout_text(&mut state.fb2d, s, r, 10.0, &state.font); //size doesn't matter anyway.
             }
         }
     });

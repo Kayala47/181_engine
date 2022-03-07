@@ -123,14 +123,15 @@ fn main() {
             state.bg_color = BACKGROUND_COLOR;
             // let mut new_objects = game_objects.clone();
 
-            state.drawables = vec![];
-            state.drawables.append(&mut slots.clone());
-            state.drawables.append(&mut boxes.clone());
-            state.drawables.append(&mut battle_slots.clone());
+            //not necessary? resets movement :/
+            // state.drawables = vec![];
+            // state.drawables.append(&mut slots.clone());
+            // state.drawables.append(&mut boxes.clone());
+            // state.drawables.append(&mut battle_slots.clone());
 
-            played_cards
-                .iter()
-                .for_each(|card| state.drawables.push(card.get_drawable()));
+            // played_cards
+            //     .iter()
+            //     .for_each(|card| state.drawables.push(card.get_drawable()));
 
             check_and_handle_drag(&mut state);
             draw(&mut state);
