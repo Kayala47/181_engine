@@ -54,10 +54,10 @@ fn main() {
 
     let mut starting_game_objects: Vec<Drawable> = vec![];
 
-    let mut boxes = vec![
-        Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))),
-        Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false))),
-    ];
+    // let mut boxes = vec![
+    //     Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))),
+    //     Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false))),
+    // ];
 
     let mut slots = generate_deck_slots(
         CARD_SIZE,
@@ -112,31 +112,32 @@ fn main() {
     // let mut played_drawable = vec![played_card.get_drawable()];
 
     starting_game_objects.append(&mut slots.clone());
-    starting_game_objects.append(&mut boxes.clone());
+    // starting_game_objects.append(&mut boxes.clone());
     starting_game_objects.append(&mut played_drawables.clone());
     starting_game_objects.append(&mut battle_slots.clone());
 
     state.drawables = starting_game_objects.clone();
 
     event_loop.run(move |event, _, control_flow| {
-        if event == Event::MainEventsCleared {
-            state.bg_color = BACKGROUND_COLOR;
-            // let mut new_objects = game_objects.clone();
+        match event {
+            Event::MainEventsCleared => {
+                state.bg_color = BACKGROUND_COLOR;
+                // let mut new_objects = game_objects.clone();
 
-            //not necessary? resets movement :/
-            // state.drawables = vec![];
-            // state.drawables.append(&mut slots.clone());
-            // state.drawables.append(&mut boxes.clone());
-            // state.drawables.append(&mut battle_slots.clone());
+                //not necessary? resets movement :/
+                // state.drawables = vec![];
+                // state.drawables.append(&mut slots.clone());
+                // state.drawables.append(&mut boxes.clone());
+                // state.drawables.append(&mut battle_slots.clone());
 
-            // played_cards
-            //     .iter()
-            //     .for_each(|card| state.drawables.push(card.get_drawable()));
+                // played_cards
+                //     .iter()
+                //     .for_each(|card| state.drawables.push(card.get_drawable()));
 
-            check_and_handle_drag(&mut state);
-            draw(&mut state);
+                check_and_handle_drag(&mut state);
+                draw(&mut state);
+            }
+            _ => handle_winit_event(event, control_flow, &mut state),
         }
-
-        handle_winit_event(event, control_flow, &mut state);
     });
 }
