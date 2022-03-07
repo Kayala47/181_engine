@@ -52,8 +52,7 @@ const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
-const FONT_DATA: &[u8] =
-    include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -300,7 +299,7 @@ pub fn generate_deck_slots(
         spacer_background_color,
         None,
     );
-    
+
     let bottom_container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -528,11 +527,11 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     for (idx, string) in strings.enumerate() {
         if idx == 0 {
             //Card title should be big
-            layout.append(fonts, &TextStyle::new(string, 20.0, 0));
+            layout.append(fonts, &TextStyle::new(string, 24.0, 0));
         } else {
-            let mut size = 12.0;
+            let mut size = 14.0;
             if subtitle {
-                size = 16.0;
+                size = 18.0;
                 subtitle = !subtitle;
 
                 //should normally be outside this if block
@@ -871,7 +870,7 @@ fn window_size_dependent_setup(
     let mut window_width = dimensions[0].into();
     let mut window_height = dimensions[1].into();
 
-    println!{"window width: {:?}", window_width};
+    println! {"window width: {:?}", window_width};
     (
         images
             .iter()
@@ -1331,7 +1330,7 @@ pub fn handle_winit_event(
                 (cursor_x * WIDTH as f64) as usize,
                 (cursor_y * HEIGHT as f64) as usize,
             );
-        },
+        }
         // closest thing to working for Windows :(
         // Event::DeviceEvent { event, .. } => match event {
         //     winit::event::DeviceEvent::Button {
@@ -1352,7 +1351,6 @@ pub fn handle_winit_event(
         //     }
         //     _ => {}
         // },
-
         Event::WindowEvent {
             event:
                 WindowEvent::MouseInput {
@@ -1366,8 +1364,8 @@ pub fn handle_winit_event(
             if button == winit::event::MouseButton::Left {
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
-        },
-        
+        }
+
         _ => {}
     }
 }

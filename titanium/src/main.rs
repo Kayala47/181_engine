@@ -10,6 +10,8 @@ const HEIGHT: usize = 1080;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
+const CARD_SIZE: (usize, usize) = (WIDTH / 9, HEIGHT / 6);
+
 struct GameState {
     dragged: String,
 }
@@ -35,7 +37,11 @@ fn main() {
         h: 40,
     };
 
-    let mut deck = load_cards_from_file("../cards2.json");
+    let mut deck1 = load_cards_from_file("../cards2.json");
+    deck1.shuffle();
+
+    let mut deck2 = load_cards_from_file("../cards2.json");
+    deck2.shuffle();
 
     let c1 = (255, 0, 0, 0);
     let c2 = (0, 255, 0, 0);
@@ -46,15 +52,13 @@ fn main() {
 
     let mut starting_game_objects: Vec<Drawable> = vec![];
 
-    let text: String = "hello".to_string();
-
     let mut boxes = vec![
         Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(true, false))),
         Drawable::RectOutlined(r2, c2, Some(DraggableSnapType::Card(true, false))),
     ];
 
     let mut slots = generate_deck_slots(
-        (WIDTH / 10, HEIGHT / 6),
+        CARD_SIZE,
         15,
         15,
         5,
@@ -64,12 +68,49 @@ fn main() {
         (220, 220, 250, 255),
     );
 
-    let played_card = deck.draw_and_remove().play(slots[2].get_rect());
-    let mut played_drawable = vec![played_card.get_drawable()];
+    dbg!(slots.len());
+
+    //these are the rectangles to fit cards in
+    let mut p1_deck_slots = slots[2..22].iter().step_by(4);
+    let mut p2_deck_slots = slots[4..24].iter().step_by(4);
+
+    let p1_deck = &slots[23];
+    let p2_deck = &slots[25];
+
+    let mut played_drawables = vec![];
+
+    // for d: Drawable::Rectangle(_, _, _) in p1_deck_slots.collect() {
+    //     played_drawables.push(deck1.draw_and_remove().play(d.get_rect()).get_drawable());
+    // }
+
+    // for (p1, p2) in zip(p1_deck_slots.iter(), p2_deck_slots.iter()) {
+    //     played_drawables.push(deck1.draw_and_remove().play(p1.get_rect()).get_drawable());
+
+    //     played_drawables.push(deck2.draw_and_remove().play(p2.get_rect()).get_drawable());
+    // }
+
+    for _ in 0..5 {
+        played_drawables.push(
+            deck1
+                .draw_and_remove()
+                .play(p1_deck_slots.next().unwrap().get_rect())
+                .get_drawable(),
+        );
+
+        played_drawables.push(
+            deck2
+                .draw_and_remove()
+                .play(p2_deck_slots.next().unwrap().get_rect())
+                .get_drawable(),
+        );
+    }
+
+    // let played_card = deck.draw_and_remove().play(slots[2].get_rect());
+    // let mut played_drawable = vec![played_card.get_drawable()];
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut boxes);
-    starting_game_objects.append(&mut played_drawable);
+    starting_game_objects.append(&mut played_drawables);
 
     state.drawables = starting_game_objects.clone();
 
@@ -82,8 +123,6 @@ fn main() {
             draw(&mut state);
         }
 
-
         handle_winit_event(event, control_flow, &mut state);
-
     });
 }
