@@ -4,6 +4,7 @@ use engine::{
     setup, Color, DraggableSnapType, Drawable, Event, PlayedCard, Rect, VirtualKeyCode,
     WindowEvent,
 };
+use std::cmp::max;
 use winit::event_loop::EventLoop;
 
 const WIDTH: usize = 1920;
@@ -210,9 +211,17 @@ fn main() {
                 // It also binds these handy variable names!
                 if key_state == winit::event::ElementState::Pressed {
                     if turn % 2 == 0 {
-                        p1_mana -= 1;
+                        if p1_mana > 0 {
+                            p1_mana -= 1;
+                        } else {
+                            p1_mana = 0;
+                        }
                     } else {
-                        p2_mana -= 1;
+                        if p2_mana > 0 {
+                            p2_mana -= 1;
+                        } else {
+                            p2_mana = 0;
+                        }
                     }
 
                     // state.drawables
