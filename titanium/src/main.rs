@@ -1,7 +1,7 @@
 use engine::{
     check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots,
     handle_winit_event, load_cards_from_file, render_character, setup, Color, DraggableSnapType,
-    Drawable, Event, Rect, VirtualKeyCode,
+    Drawable, Event, PlayedCard, Rect, VirtualKeyCode,
 };
 use winit::event_loop::EventLoop;
 
@@ -88,29 +88,33 @@ fn main() {
     let p2_deck = &slots[25];
 
     let mut played_drawables = vec![];
+    let mut played_cards: Vec<PlayedCard> = vec![];
 
     for _ in 0..5 {
         let slot = p1_deck_slots.next().unwrap();
 
-        played_drawables.push(deck1.draw_and_remove().play(slot.get_rect()).get_drawable());
+        let p1card = deck1.draw_and_remove().play(slot.get_rect());
+
+        played_drawables.push(p1card.get_drawable());
+        played_cards.push(p1card);
         // dbg!(played_drawables[played_drawables.len() - 1].get_coords());
         // dbg!(slot.get_coords());
 
-        played_drawables.push(
-            deck2
-                .draw_and_remove()
-                .play(p2_deck_slots.next().unwrap().get_rect())
-                .get_drawable(),
-        );
+        let p2card = deck2
+            .draw_and_remove()
+            .play(p2_deck_slots.next().unwrap().get_rect());
+
+        played_drawables.push(p2card.get_drawable());
+        played_cards.push(p2card);
     }
 
     // let played_card = deck.draw_and_remove().play(slots[2].get_rect());
     // let mut played_drawable = vec![played_card.get_drawable()];
 
-    starting_game_objects.append(&mut slots);
-    starting_game_objects.append(&mut boxes);
-    starting_game_objects.append(&mut played_drawables);
-    starting_game_objects.append(&mut battle_slots);
+    starting_game_objects.append(&mut slots.clone());
+    starting_game_objects.append(&mut boxes.clone());
+    starting_game_objects.append(&mut played_drawables.clone());
+    starting_game_objects.append(&mut battle_slots.clone());
 
     state.drawables = starting_game_objects.clone();
 
@@ -118,6 +122,15 @@ fn main() {
         if event == Event::MainEventsCleared {
             state.bg_color = BACKGROUND_COLOR;
             // let mut new_objects = game_objects.clone();
+
+            state.drawables = vec![];
+            state.drawables.append(&mut slots.clone());
+            state.drawables.append(&mut boxes.clone());
+            state.drawables.append(&mut battle_slots.clone());
+
+            played_cards
+                .iter()
+                .for_each(|card| state.drawables.push(card.get_drawable()));
 
             check_and_handle_drag(&mut state);
             draw(&mut state);

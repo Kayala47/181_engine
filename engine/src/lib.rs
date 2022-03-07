@@ -140,7 +140,7 @@ impl PlayedCard {
             self.rect,
             self.card.get_description(),
             10.0,
-            Some(DraggableSnapType::Card(false, true)),
+            Some(DraggableSnapType::PlayedCard(false, true)),
         )
     }
 }
