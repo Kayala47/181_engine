@@ -141,7 +141,7 @@ impl PlayedCard {
             self.rect,
             self.card.get_description(),
             CARD_COLOR,
-            Some(DraggableSnapType::PlayedCard(true, false)),
+            Some(DraggableSnapType::Card(true, false)),
         )
     }
 }
