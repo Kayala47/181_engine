@@ -11,7 +11,8 @@
             "special": "some fx that heals",
             "attack": 1,
             "attackTag": "Sacred Flame \n Toss a mote of radiant light at a foe",
-            "specialAttribute": ""
+            "specialAttribute": "",
+            "soundEffect": ""
         },
         {
             "name": "Kleitos",
@@ -24,7 +25,120 @@
             "special": "Some fx that increases attack",
             "attack": 3,
             "attackTag": "Swing with the mighty Wolfblade",
-            "specialAttribute": "Tireless warrior: no upkeep cost"
+            "specialAttribute": "Tireless warrior: no upkeep cost",
+            "soundEffect": ""
+        },
+        {
+            "name": "Varim Ironmaw",
+            "playCost": 3,
+            "health": 3,
+            "defense": 2,
+            "passiveCost": 1,
+            "specialCost": 1,
+            "specialTag": "",
+            "special": "",
+            "attack": 1,
+            "attackTag": "",
+            "specialAttribute": "Iron Armor: \n All sources deal 1 less damage to the Ironmaw",
+            "soundEffect": ""
+        },
+        {
+            "name": "Arlo Bilberry",
+            "playCost": 2,
+            "health": 1,
+            "defense": 1,
+            "passiveCost": 2,
+            "specialCost": 1,
+            "specialTag": "Sleep: Add 1 to health and attack",
+            "special": "Add 1 to health and attack",
+            "attack": 1,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Yawn"
+        },
+        {
+            "name": "Rhogar Whiteclaw",
+            "playCost": 3,
+            "health": 2,
+            "defense": 2,
+            "passiveCost": 1,
+            "specialCost": 0,
+            "specialTag": "ROAAAR",
+            "special": "No effect",
+            "attack": 4,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Roar"
+        },
+        {
+            "name": "Thagnos Firebrand",
+            "playCost": 2,
+            "health": 2,
+            "defense": 2,
+            "passiveCost": 2,
+            "specialCost": 2,
+            "specialTag": "Singe: Deal 2 damage to the enemy",
+            "special": "Deal 2 damage to the enemy",
+            "attack": 2,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Burn"
+        },
+        {
+            "name": "Melthrax",
+            "playCost": 5,
+            "health": 5,
+            "defense": 0,
+            "passiveCost": 2,
+            "specialCost": 0,
+            "specialTag": "ROAAAR",
+            "special": "No effect",
+            "attack": 3,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Roar"
+        },
+        {
+            "name": "Berman Protocol",
+            "playCost": 6,
+            "health": 6,
+            "defense": 0,
+            "passiveCost": 6,
+            "specialCost": 0,
+            "specialTag": "Settle: All other passive costs decreased by 2",
+            "special": "All other passive costs decreased by 2",
+            "attack": 0,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Heal"
+        },
+        {
+            "name": "Dr. Vaugn Von Oe",
+            "playCost": 2,
+            "health": 3,
+            "defense": 1,
+            "passiveCost": 2,
+            "specialCost": 3,
+            "specialTag": "Operate: Heal 5",
+            "special": "Heal 5",
+            "attack": 1,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Heal"
+        },
+        {
+            "name": "Ayalan Accord",
+            "playCost": 1,
+            "health": 3,
+            "defense": 0,
+            "passiveCost": 3,
+            "specialCost": 0,
+            "specialTag": "Settle: All other damage increased by 1",
+            "special": "All other damage increased by 1",
+            "attack": 0,
+            "attackTag": "",
+            "specialAttribute": "",
+            "soundEffect": "Heal"
         }
     ]
 }
