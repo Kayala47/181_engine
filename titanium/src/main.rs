@@ -1,7 +1,7 @@
 use engine::{
-    check_and_handle_drag, clear, draw, generate_deck_slots, handle_winit_event,
-    load_cards_from_file, render_character, setup, Color, DraggableSnapType, Drawable, Event, Rect,
-    VirtualKeyCode,
+    check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots,
+    handle_winit_event, load_cards_from_file, render_character, setup, Color, DraggableSnapType,
+    Drawable, Event, Rect, VirtualKeyCode,
 };
 use winit::event_loop::EventLoop;
 
@@ -11,6 +11,8 @@ const HEIGHT: usize = 1080;
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
 const CARD_SIZE: (usize, usize) = (WIDTH / 9, HEIGHT / 6);
+const CARD_PADDING_BOTTOM: usize = 15;
+const CARD_PADDING_TOP: usize = 15;
 
 struct GameState {
     dragged: String,
@@ -59,13 +61,21 @@ fn main() {
 
     let mut slots = generate_deck_slots(
         CARD_SIZE,
-        15,
-        15,
+        CARD_PADDING_BOTTOM,
+        CARD_PADDING_TOP,
         5,
         (0, 0, 0, 255),
         (0, 255, 0, 255),
         (255, 255, 255, 255),
         (220, 220, 250, 255),
+    );
+
+    let mut battle_slots = generate_battle_slots(
+        CARD_SIZE,
+        CARD_PADDING_BOTTOM,
+        CARD_PADDING_TOP,
+        5,
+        (255, 0, 0, 0),
     );
 
     dbg!(slots.len());
@@ -79,17 +89,10 @@ fn main() {
 
     let mut played_drawables = vec![];
 
-
     for _ in 0..5 {
-
         let slot = p1_deck_slots.next().unwrap();
 
-        played_drawables.push(
-            deck1
-                .draw_and_remove()
-                .play(slot.get_rect())
-                .get_drawable(),
-        );
+        played_drawables.push(deck1.draw_and_remove().play(slot.get_rect()).get_drawable());
         // dbg!(played_drawables[played_drawables.len() - 1].get_coords());
         // dbg!(slot.get_coords());
 
@@ -107,6 +110,7 @@ fn main() {
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut boxes);
     starting_game_objects.append(&mut played_drawables);
+    starting_game_objects.append(&mut battle_slots);
 
     state.drawables = starting_game_objects.clone();
 
