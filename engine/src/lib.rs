@@ -668,7 +668,7 @@ pub enum DraggableSnapType {
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
-    Text(Rect, String, f32),
+    Text(Rect, String, f32, Option<DraggableSnapType>),
 }
 
 impl Drawable {
@@ -676,7 +676,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => *rect,
             Drawable::RectOutlined(rect, _, _) => *rect,
-            &Drawable::Text(rect, _, _) => rect,
+            &Drawable::Text(rect, _, _, _) => rect,
         }
     }
 
@@ -689,7 +689,7 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
-            &Drawable::Text(rect, _, _) => {
+            &Drawable::Text(rect, _, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
         }
@@ -699,7 +699,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
-            &Drawable::Text(rect, _, _) => (rect.x, rect.y),
+            &Drawable::Text(rect, _, _, _) => (rect.x, rect.y),
         }
     }
 
@@ -715,7 +715,7 @@ impl Drawable {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
-            &mut Drawable::Text(mut rect, _, _) => {
+            &mut Drawable::Text(mut rect, _, _, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -733,7 +733,7 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
-            Drawable::Text(rect, _, _) => {
+            Drawable::Text(rect, _, _, _) => {
                 rect.x = x;
                 rect.y = y;
             }
@@ -744,7 +744,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
-            &Drawable::Text(_, _, _) => None,
+            &Drawable::Text(_, _, _, drag_type) => *drag_type,
         }
     }
 
