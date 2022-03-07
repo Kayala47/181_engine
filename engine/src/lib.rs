@@ -275,6 +275,55 @@ pub fn calculate_deck_position(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn generate_battle_slots(
+    card_size: (usize, usize),
+    card_padding_bottom: usize,
+    card_padding_top: usize,
+    num_slots: usize,
+    slot_border_color: Color,
+) -> Vec<Drawable> {
+    let mut drawables: Vec<Drawable> = vec![];
+
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots);
+    let (card_width, card_height) = card_size;
+    assert!(card_width * (num_slots + 1) < WIDTH);
+
+    let y = card_height + card_padding_top + card_padding_bottom;
+
+    let bottom_y = y + (card_height * 2) + (card_padding_bottom * 2) + card_padding_bottom;
+
+    (1..num_slots + 1).for_each(|slot| {
+        let card_x = slot * spacer_width + (slot - 1) * card_width;
+        let top_card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y,
+                w: card_width,
+                h: card_height,
+            },
+            slot_border_color,
+            Some(DraggableSnapType::Card(false, true)),
+        );
+
+        let bottom_card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y: bottom_y,
+                w: card_width,
+                h: card_height,
+            },
+            slot_border_color,
+            Some(DraggableSnapType::Card(false, true)),
+        );
+
+        drawables.push(top_card_slot_frame);
+        drawables.push(bottom_card_slot_frame);
+    });
+
+    drawables
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn generate_deck_slots(
     card_size: (usize, usize),
     card_padding_bottom: usize,
@@ -289,6 +338,7 @@ pub fn generate_deck_slots(
     assert!(card_width * (num_slots + 1) < WIDTH);
 
     let spacer_width = calculate_card_spacer_width(card_size, num_slots); // 3 represents double space between last card and deck, plus space to right of deck
+
     let top_container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -497,8 +547,6 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     let fonts = &[font]; //need to make a list
 
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-
-    
 
     let lay_settings = LayoutSettings {
         x: r.x as f32,
