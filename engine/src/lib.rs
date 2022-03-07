@@ -667,7 +667,6 @@ pub struct Rect {
 #[derive(Copy, Clone)]
 pub enum DraggableSnapType {
     Card(bool, bool),
-    PlayedCard(bool, bool),
 }
 
 #[derive(Clone)]
@@ -774,7 +773,6 @@ impl Drawable {
 
         match drag_type {
             Some(DraggableSnapType::Card(draggable, _)) => draggable,
-            Some(DraggableSnapType::PlayedCard(draggable, _)) => draggable,
             _ => false,
         }
     }
@@ -785,12 +783,6 @@ impl Drawable {
         match drag_type {
             DraggableSnapType::Card(_, _) => {
                 if let Some(DraggableSnapType::Card(_, true)) = release_type {
-                    return true;
-                }
-                false
-            }
-            DraggableSnapType::PlayedCard(_, _) => {
-                if let Some(DraggableSnapType::PlayedCard(_, true)) = release_type {
                     return true;
                 }
                 false
