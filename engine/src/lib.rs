@@ -42,7 +42,7 @@ use vulkano::sync::{self, FlushError, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
 pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+pub use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 // We'll make our Color type an RGBA8888 pixel.
@@ -65,7 +65,7 @@ vulkano::impl_vertex!(Vertex, position, uv);
 #[allow(non_snake_case)]
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Card {
-    name: String,
+    pub name: String,
     playCost: usize,
     health: usize,
     defense: usize,
@@ -128,16 +128,39 @@ impl Card {
             rect: r,
         }
     }
+
+    pub fn move_card(&self, r: Rect, s: usize) -> PlayedCard {
+        PlayedCard {
+            card: self.clone(),
+            rect: move_unit(r, s),
+        }
+    }
+}
+
+pub struct Unit {
+    pub card: Card,
+    pub rect: Rect
 }
 
 pub struct PlayedCard {
-    card: Card,
-    rect: Rect,
+    pub card: Card,
+    pub rect: Rect,
 }
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
         Drawable::Text(self.rect, self.card.get_description(), 10.0)
+    }
+
+    pub fn get_drawable_rect(&self, c: Color) -> Drawable {
+        Drawable::Rectangle(self.rect, c, Some(DraggableSnapType::Card(false, false)))
+    }
+
+    pub fn move_this(&self, s: usize) -> PlayedCard {
+        PlayedCard {
+            card: self.card.clone(),
+            rect: move_unit(self.rect.clone(), s)
+        }
     }
 }
 
@@ -214,6 +237,8 @@ pub fn load_cards_from_file(file_path: &str) -> Deck {
 pub struct State {
     pub fb2d: Vec<(u8, u8, u8, u8)>,
     pub drawables: Vec<Drawable>,
+    pub p1_units: Vec<PlayedCard>,
+    pub p2_units: Vec<PlayedCard>,
     pub bg_color: Color,
     previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
@@ -235,8 +260,8 @@ pub struct State {
     device: Arc<vulkano::device::Device>,
     set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
-    window_width: f64,
-    window_height: f64,
+    pub window_width: f64,
+    pub window_height: f64,
     pub left_mouse_down: bool,
     pub prev_left_mouse_down: bool,
     pub mouse_coords: FbCoords,
@@ -830,6 +855,11 @@ fn window_size_dependent_setup(
     )
 }
 
+pub fn move_unit(pos: Rect, speed: usize) -> Rect {
+    let new_pos = Rect {x: pos.x + speed, y: pos.y, w: pos.w, h: pos.h};
+    return new_pos;
+}
+
 pub fn setup() -> State {
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
@@ -1057,6 +1087,8 @@ pub fn setup() -> State {
     State {
         fb2d,
         drawables: vec![],
+        p1_units: vec![],
+        p2_units: vec![],
         bg_color: (255, 255, 255, 255),
         previous_frame_end,
         recreate_swapchain,
