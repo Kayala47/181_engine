@@ -374,7 +374,7 @@ pub fn generate_deck_slots(
                 h: card_height,
             },
             (slot_background_color),
-            None,
+            Some(DraggableSnapType::Card(true, false)),
         );
         let top_card_slot_frame = Drawable::RectOutlined(
             Rect {
@@ -505,42 +505,6 @@ pub fn render_character(
 
     //return these for use in text
     (metrics.width, metrics.height)
-}
-
-pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
-    //TODO: I would ideally like it to be able to decide it's own size based on the space
-    //it has to fill
-
-    let mut x = r.x;
-    let mut y = r.y;
-    let hor_lim = r.x + r.w;
-    let ver_lim = r.y + r.h;
-    let mut avg_space = 0;
-
-    for word in s.split_whitespace() {
-        for c in word.chars() {
-            let (new_w, new_h) = render_character(c, fb, x, y, size, font);
-            avg_space = new_w;
-
-            x += new_w;
-
-            if c == '\n' {
-                y += avg_space;
-            }
-
-            if x >= hor_lim {
-                x = r.x;
-                y += new_h;
-            }
-
-            if y >= ver_lim {
-                //stop drawing - sucks to suck
-                return;
-            }
-        }
-
-        x += avg_space;
-    }
 }
 
 pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
@@ -697,6 +661,7 @@ pub struct Rect {
 #[derive(Copy, Clone)]
 pub enum DraggableSnapType {
     Card(bool, bool),
+    // PlayedCard(bool, bool),
 }
 
 #[derive(Clone)]
