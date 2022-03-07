@@ -129,23 +129,48 @@ impl Card {
         }
     }
 
-    pub fn move_card(&self, r: Rect, s: usize) -> PlayedCard {
-        PlayedCard {
-            card: self.clone(),
-            rect: move_unit(r, s),
-        }
-    }
+    
+
+    // pub fn move_card(&self, r: Rect, s: usize) -> PlayedCard {
+    //     PlayedCard {
+    //         card: self.clone(),
+    //         rect: move_unit(r, s),
+    //     }
+    // }
 }
 
 pub struct Unit {
-    pub card: Card,
-    pub rect: Rect
+    pub played_card: PlayedCard,
+    pub id: usize
 }
 
 pub struct PlayedCard {
     pub card: Card,
     pub rect: Rect,
 }
+
+
+impl Unit {
+    pub fn get_id(&self) -> usize {
+        return self.id;
+    }
+
+    pub fn move_unit(&self, s: usize) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(s),
+            id: self.get_id()
+        }
+    }
+
+    pub fn move_unit_back(&self, s: usize) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc_back(s),
+            id: self.get_id()
+        }
+    }
+}
+
+
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
@@ -156,10 +181,27 @@ impl PlayedCard {
         Drawable::Rectangle(self.rect, c, Some(DraggableSnapType::Card(false, false)))
     }
 
-    pub fn move_this(&self, s: usize) -> PlayedCard {
+    pub fn move_pc(&self, s: usize) -> PlayedCard {
         PlayedCard {
             card: self.card.clone(),
             rect: move_unit(self.rect.clone(), s)
+        }
+    }
+
+    pub fn move_pc_back(&self, s: usize) -> PlayedCard {
+        PlayedCard {
+            card: self.card.clone(),
+            rect: move_back(self.rect.clone(), s)
+        }
+    }
+
+    pub fn play_unit(self, id: usize, pos: Rect) -> Unit {
+        Unit {
+            played_card: PlayedCard {
+                card: self.card,
+                rect: pos
+            },
+            id: id
         }
     }
 }
@@ -237,8 +279,8 @@ pub fn load_cards_from_file(file_path: &str) -> Deck {
 pub struct State {
     pub fb2d: Vec<(u8, u8, u8, u8)>,
     pub drawables: Vec<Drawable>,
-    pub p1_units: Vec<PlayedCard>,
-    pub p2_units: Vec<PlayedCard>,
+    pub p1_units: Vec<Unit>,
+    pub p2_units: Vec<Unit>,
     pub bg_color: Color,
     previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
@@ -857,6 +899,11 @@ fn window_size_dependent_setup(
 
 pub fn move_unit(pos: Rect, speed: usize) -> Rect {
     let new_pos = Rect {x: pos.x + speed, y: pos.y, w: pos.w, h: pos.h};
+    return new_pos;
+}
+
+pub fn move_back(pos: Rect, speed: usize) -> Rect {
+    let new_pos = Rect {x: pos.x - speed, y: pos.y, w: pos.w, h: pos.h};
     return new_pos;
 }
 

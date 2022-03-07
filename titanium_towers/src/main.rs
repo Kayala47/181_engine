@@ -35,6 +35,11 @@ pub struct Card {
     specialAttribute: String,
 }
 
+fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
+    let offset = id * 20;
+    Rect {x: og_spawn.x, y: (og_spawn.y + offset) % 200 + og_spawn.y , w: og_spawn.w, h: og_spawn.h}
+}
+
 fn main() {
     let r1 = Rect {
         x: 100,
@@ -49,17 +54,27 @@ fn main() {
         h: 200,
     };
 
-    let r3 = Rect {
-        x: 150,
-        y: 10,
-        w: 30,
-        h: 40,
+    let spawn1 = Rect {
+        x: 300,
+        y: HEIGHT / 2 - 50,
+        w: 20,
+        h: 20,
     };
+
+    let spawn2 = Rect {
+        x: WIDTH - 300,
+        y: HEIGHT / 2 - 50,
+        w: 20,
+        h: 20,
+    };
+
+
+    let mut unit_id = 0;
 
     let mut deck = load_cards_from_file("../cards2.json");
 
-    let c1 = (255, 0, 0, 0);
-    let c2 = (0, 255, 0, 0);
+    let c2 = (255, 0, 0, 0);
+    let c1 = (0, 255, 0, 0);
     let c3 = (0, 0, 255, 0);
 
     let mut state = setup();
@@ -71,8 +86,8 @@ fn main() {
     let text: String = "hello".to_string();
 
     let mut towers = vec![
-        Drawable::Rectangle(r1, c2, Some(DraggableSnapType::Card(false, false))),
-        Drawable::Rectangle(r2, c1, Some(DraggableSnapType::Card(false, false))),
+        Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(false, false))),
+        Drawable::Rectangle(r2, c2, Some(DraggableSnapType::Card(false, false))),
     ];
 
     let mut slots = generate_deck_slots(
@@ -101,52 +116,59 @@ fn main() {
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut towers);
-    starting_game_objects.append(&mut played_drawable);
+    //starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
-
-    played_card1.card.play(r3);
+    state.drawables.append(&mut played_drawable);
 
     // When 1 is pressed
-    state.p1_units.push(played_card1.card.play(r3));
+    let mut u1 = played_card1.play_unit(unit_id, create_spawn_point(spawn1, unit_id));
+    unit_id += 1;
+    state.p1_units.push(u1);
+        // remove card from first pos, draw another
     
     // When 8 is pressed
-    state.p2_units.push(played_card2.card.play(r1));
+    let mut u2 = played_card2.play_unit(unit_id, create_spawn_point(spawn2, unit_id));
+    unit_id += 1;
+    state.p2_units.push(u2);
+        // remove card from second pos, draw another
     
     
-    let mut pc5 = deck.draw_and_remove().play(r1);
+    // let pc5 = deck.draw_and_remove().play(r1);
+    // let mut u5 = pc5.play_unit(0);
     
     event_loop.run(move |event, _, control_flow| {
-        let mut p1_unit_drawables = vec![];
-
-        // let c = pc5.card;
-        // let r = pc5.rect;
-        pc5 = pc5.move_this(5);
-
-        p1_unit_drawables.push(
-            pc5.get_drawable_rect(c3)
-            // Drawable::Rectangle(new_unit_pos, c2, Some(DraggableSnapType::Card(false, false)))
-        );
-
-        // let p2_unit_drawables = vec![];
-        // let pc5_1 = pc5.play(move_unit(pc5.rect, 0.1 as usize)).get_drawable();
-        // state.drawables.push(pc5_1);
-        // for unit in state.p1_units.iter() {
-        //     let new_unit_pos = move_unit(unit.rect, 2);
-        //     p1_unit_drawables.push(Drawable::Rectangle(new_unit_pos, c2, Some(DraggableSnapType::Card(false, false))));
-        // }
-
-        for unit in state.p2_units.iter() {
-            // unit.
-        }
-
-        state.drawables.append(&mut p1_unit_drawables);
+       
         
         if event == Event::MainEventsCleared {
             state.bg_color = BACKGROUND_COLOR;
             
-            // let mut new_objects = game_objects.clone();
-            // check_and_handle_drag(&mut state);
+            let mut p1_unit_drawables = vec![];
+            let mut p2_unit_drawables = vec![];
+
+            // state.drawables.push(pc5_1);
+            for unit in state.p1_units.iter() {
+                let new_unit = unit.move_unit(5);
+                p1_unit_drawables.push(new_unit );
+            }
+    
+            for unit in state.p2_units.iter() {
+                let new_unit = unit.move_unit_back(5);
+                p2_unit_drawables.push(new_unit);
+            }
+    
+            state.drawables = starting_game_objects.clone();
+    
+            for unit in p1_unit_drawables.iter() {
+                state.drawables.push(unit.played_card.get_drawable_rect(c3));
+            }
+
+            for unit in p2_unit_drawables.iter() {
+                state.drawables.push(unit.played_card.get_drawable_rect(c3));
+            }
+    
+            state.p1_units = p1_unit_drawables;
+            state.p2_units = p2_unit_drawables;
 
             draw(&mut state);
         }
