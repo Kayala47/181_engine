@@ -1,5 +1,5 @@
 use engine::{
-    check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots,
+    check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots, handle_mana,
     handle_winit_event, load_cards_from_file, render_character, setup, Color, DraggableSnapType,
     Drawable, Event, PlayedCard, Rect, VirtualKeyCode, WindowEvent,
 };
@@ -19,7 +19,10 @@ struct GameState {
 }
 
 fn main() {
-    let mut turn = 0;
+    let mut turn: usize = 0;
+
+    let mut p1_mana: usize = 0;
+    let mut p2_mana: usize = 0;
 
     let mut deck1 = load_cards_from_file("../cards2.json");
     deck1.shuffle();
@@ -101,6 +104,9 @@ fn main() {
     state.drawables = starting_game_objects.clone();
 
     event_loop.run(move |event, _, control_flow| {
+        dbg!(p1_mana);
+        dbg!(p2_mana);
+
         match event {
             Event::MainEventsCleared => {
                 state.bg_color = BACKGROUND_COLOR;
@@ -135,20 +141,41 @@ fn main() {
                 ..
             } => {
                 // It also binds these handy variable names!
-                match key_state {
-                    winit::event::ElementState::Pressed => {
-                        // VirtualKeycode is an enum with a defined representation
-                        // state.now_keys[virtual_keycode as usize] = true;
-                        turn += 1;
-                        dbg!(turn);
-                        println!("key pressed");
-                    }
-                    winit::event::ElementState::Released => {
-                        // state.now_keys[virtual_keycode as usize] = false;
-                    }
+                if key_state == winit::event::ElementState::Pressed {
+                    // VirtualKeycode is an enum with a defined representation
+                    // state.now_keys[virtual_keycode as usize] = true;
+                    turn += 1;
+                    dbg!(turn);
+                    println!("key pressed");
+                }
+            }
+            Event::WindowEvent {
+                // Note this deeply nested pattern match
+                event:
+                    WindowEvent::KeyboardInput {
+                        input:
+                            winit::event::KeyboardInput {
+                                // Which serves to filter out only events we actually want
+                                virtual_keycode: Some(VirtualKeyCode::Down),
+                                state: key_state,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => {
+                // It also binds these handy variable names!
+                if key_state == winit::event::ElementState::Pressed {
+                    (p1_mana, p2_mana) = handle_mana((p1_mana, p2_mana), -1, turn);
                 }
             }
             _ => handle_winit_event(event, control_flow, &mut state),
+        }
+
+        if turn % 2 == 0 {
+            //next turn, gain more mana
+            p1_mana += 5;
+            p2_mana += 5;
         }
     });
 }

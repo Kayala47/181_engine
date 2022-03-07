@@ -899,6 +899,19 @@ fn line_bresenham(
     }
 }
 
+pub fn handle_mana(curr_manas: (usize, usize), delta: usize, turn: usize) {
+    let (p1_mana, p2_mana) = curr_manas;
+
+    if turn % 2 == 0 {
+        // p1
+        p1_mana -= delta;
+    } else {
+        p2_mana -= delta;
+    }
+
+    (p1_mana, p2_mana)
+}
+
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
