@@ -125,17 +125,18 @@ fn main() {
     let mut u1 = played_card1.play_unit(unit_id, create_spawn_point(spawn1, unit_id));
     unit_id += 1;
     state.p1_units.push(u1);
-        // remove card from first pos, draw another
+    // played_card1 = deck.draw_and_remove().play(slots[2].get_rect());
+    // TODO: add player cd, and replenish card
     
     // When 8 is pressed
     let mut u2 = played_card2.play_unit(unit_id, create_spawn_point(spawn2, unit_id));
     unit_id += 1;
     state.p2_units.push(u2);
-        // remove card from second pos, draw another
-    
-    
-    // let pc5 = deck.draw_and_remove().play(r1);
-    // let mut u5 = pc5.play_unit(0);
+    // played_card2 = deck.draw_and_remove().play(slots[4].get_rect());
+    // TODO: add player cd, and replenish card
+
+    // TODO: add more button presses for each player
+        
     
     event_loop.run(move |event, _, control_flow| {
        
@@ -148,25 +149,41 @@ fn main() {
 
             // state.drawables.push(pc5_1);
             for unit in state.p1_units.iter() {
-                let new_unit = unit.move_unit(5);
-                p1_unit_drawables.push(new_unit );
+                if unit.get_rect_x() <= WIDTH - 300 {
+                    p1_unit_drawables.push(unit.move_unit(5));
+                } else {
+                    p1_unit_drawables.push(unit.move_unit(0));
+                    // attack!
+                    // take damage
+                }
             }
     
             for unit in state.p2_units.iter() {
-                let new_unit = unit.move_unit_back(5);
-                p2_unit_drawables.push(new_unit);
+                if unit.get_rect_x() >= 300 {
+                    p2_unit_drawables.push(unit.move_unit_back(5));
+                    
+                } else {
+                    p2_unit_drawables.push(unit.move_unit_back(0));
+                    // attack!
+                    // take damage
+                }
             }
     
             state.drawables = starting_game_objects.clone();
     
             for unit in p1_unit_drawables.iter() {
-                state.drawables.push(unit.played_card.get_drawable_rect(c3));
+                state.drawables.push(unit.played_card.get_drawable_rect(c1));
             }
 
             for unit in p2_unit_drawables.iter() {
-                state.drawables.push(unit.played_card.get_drawable_rect(c3));
+                state.drawables.push(unit.played_card.get_drawable_rect(c2));
             }
     
+            // state.drawables.push(played_card1.get_drawable());
+            // state.drawables.push(played_card2.get_drawable());
+            // state.drawables.push(played_card3.get_drawable());
+            // state.drawables.push(played_card4.get_drawable());
+
             state.p1_units = p1_unit_drawables;
             state.p2_units = p2_unit_drawables;
 

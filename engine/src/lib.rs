@@ -155,6 +155,10 @@ impl Unit {
         return self.id;
     }
 
+    pub fn get_rect_x(&self) -> usize {
+        return self.played_card.rect.x;
+    }
+
     pub fn move_unit(&self, s: usize) -> Unit {
         Unit {
             played_card: self.played_card.move_pc(s),
