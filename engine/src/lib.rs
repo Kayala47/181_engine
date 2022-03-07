@@ -500,10 +500,10 @@ pub fn render_character(
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
             let pixel = bit_iter.next().unwrap();
 
-            // if pixel.0 == 0 {
-            //     //skip adding the background!
-            //     continue;
-            // }
+            if pixel.0 == 0 {
+                //skip adding the background!
+                continue;
+            }
 
             fb[j] = *pixel;
         }
@@ -547,7 +547,13 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     for (idx, string) in strings.enumerate() {
         if idx == 0 {
             //Card title should be big
-            layout.append(fonts, &TextStyle::new(string, 16.0, 0));
+
+            if size >= 40.0 {
+                //not a card
+                layout.append(fonts, &TextStyle::new(string, size, 0));
+            } else {
+                layout.append(fonts, &TextStyle::new(string, 16.0, 0));
+            }
         } else {
             let mut size = 14.0;
             if subtitle {
@@ -696,7 +702,7 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
-            &Drawable::Text(rect, _, _, _) => {
+            Drawable::Text(rect, _, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
             Drawable::PlayedCard(rect, _, _, _) => {
@@ -709,10 +715,23 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
-            &Drawable::Text(rect, _, _, _) => (rect.x, rect.y),
+            Drawable::Text(rect, _, _, _) => (rect.x, rect.y),
             Drawable::PlayedCard(rect, _, _, _) => (rect.x, rect.y),
         }
     }
+
+    // pub fn change_text(self: &mut Drawable, new_s: String) {
+    //     match self {
+    //         Drawable::Text(_, mut s, _, _) => {
+    //             s = new_s;
+    //         }
+    //         Drawable::PlayedCard(_, mut s, _, _) => {
+    //             s = new_s;
+    //         }
+    //         Drawable::Rectangle(_, _, _) => {}
+    //         Drawable::RectOutlined(_, _, _) => {}
+    //     }
+    // }
 
     pub fn shift(self: &mut Drawable, amount: (i32, i32)) {
         let (x, y) = amount;
@@ -900,7 +919,7 @@ fn line_bresenham(
 }
 
 pub fn handle_mana(curr_manas: (usize, usize), delta: usize, turn: usize) -> (usize, usize) {
-    let  (mut p1_mana, mut p2_mana) = curr_manas;
+    let (mut p1_mana, mut p2_mana) = curr_manas;
 
     if turn % 2 == 0 {
         // p1

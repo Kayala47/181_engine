@@ -1,7 +1,8 @@
 use engine::{
-    check_and_handle_drag, clear, draw, generate_battle_slots, generate_deck_slots, handle_mana,
-    handle_winit_event, load_cards_from_file, render_character, setup, Color, DraggableSnapType,
-    Drawable, Event, PlayedCard, Rect, VirtualKeyCode, WindowEvent,
+    check_and_handle_drag, clear, draw, draw_layout_text, generate_battle_slots,
+    generate_deck_slots, handle_mana, handle_winit_event, load_cards_from_file, render_character,
+    setup, Color, DraggableSnapType, Drawable, Event, PlayedCard, Rect, VirtualKeyCode,
+    WindowEvent,
 };
 use winit::event_loop::EventLoop;
 
@@ -20,6 +21,9 @@ struct GameState {
 
 fn main() {
     let mut turn: usize = 0;
+
+    let mut p1_m_idx: usize = 0;
+    let mut p2_m_idx: usize = 0;
 
     let mut p1_mana: usize = 5;
     let mut p2_mana: usize = 5;
@@ -72,6 +76,23 @@ fn main() {
     let p1_deck = &slots[23];
     let p2_deck = &slots[25];
 
+    let p1_d_r = p1_deck.get_rect();
+    let p2_d_r = p2_deck.get_rect();
+
+    let p1_mana_r = Rect {
+        x: p1_d_r.x,
+        y: p1_d_r.y + CARD_PADDING_BOTTOM + CARD_PADDING_TOP + CARD_SIZE.1,
+        w: p1_d_r.w,
+        h: p1_d_r.h,
+    };
+
+    let p2_mana_r = Rect {
+        x: p2_d_r.x,
+        y: p2_d_r.y - CARD_PADDING_BOTTOM - CARD_PADDING_TOP - CARD_SIZE.1,
+        w: p2_d_r.w,
+        h: p2_d_r.h,
+    };
+
     let mut played_drawables = vec![];
     let mut played_cards: Vec<PlayedCard> = vec![];
 
@@ -93,9 +114,6 @@ fn main() {
         played_cards.push(p2card);
     }
 
-    // let played_card = deck.draw_and_remove().play(slots[2].get_rect());
-    // let mut played_drawable = vec![played_card.get_drawable()];
-
     starting_game_objects.append(&mut slots.clone());
     // starting_game_objects.append(&mut boxes.clone());
     starting_game_objects.append(&mut played_drawables.clone());
@@ -103,9 +121,42 @@ fn main() {
 
     state.drawables = starting_game_objects.clone();
 
+    dbg!(state.drawables.len());
+
+    p1_m_idx = state.drawables.len();
+    state
+        .drawables
+        .push(Drawable::Text(p1_mana_r, p1_mana.to_string(), 10.0, None));
+
+    dbg!(state.drawables.len());
+    p2_m_idx = state.drawables.len();
+    state
+        .drawables
+        .push(Drawable::Text(p2_mana_r, p2_mana.to_string(), 10.0, None));
+
+    dbg!(state.drawables.len());
+
+    //loop starts here!
+
     event_loop.run(move |event, _, control_flow| {
-        dbg!(p1_mana);
-        dbg!(p2_mana);
+        state.drawables.remove(p2_m_idx);
+        state.drawables.remove(p1_m_idx - 1);
+
+        p1_m_idx = state.drawables.len();
+        state.drawables.push(Drawable::Text(
+            p1_mana_r,
+            format!("Player 1 has {} mana", p1_mana),
+            40.0,
+            None,
+        ));
+
+        p2_m_idx = state.drawables.len();
+        state.drawables.push(Drawable::Text(
+            p2_mana_r,
+            format!("Player 2 has {} mana", p2_mana),
+            40.0,
+            None,
+        ));
 
         match event {
             Event::MainEventsCleared => {
@@ -158,20 +209,16 @@ fn main() {
             } => {
                 // It also binds these handy variable names!
                 if key_state == winit::event::ElementState::Pressed {
-                    dbg!("down pressed");
-                    // let mana_results = handle_mana((p1_mana, p2_mana), -1.0 as usize, turn);
-                    
-                    if turn % 2 == 0{
+                    if turn % 2 == 0 {
                         p1_mana -= 1;
-                    }else{
+                    } else {
                         p2_mana -= 1;
                     }
-                    
+
+                    // state.drawables
                 }
             }
             _ => handle_winit_event(event, control_flow, &mut state),
         }
-
-        
     });
 }
