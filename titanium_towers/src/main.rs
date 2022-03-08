@@ -12,35 +12,38 @@ const HEIGHT: usize = 1080;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
-pub struct PlayedCard {
-    pub card: Card,
-    pub rect: Rect,
-}
-
-pub struct Card {
-    pub name: String,
-    playCost: usize,
-    health: usize,
-    defense: usize,
-    passiveCost: usize,
-    specialCost: usize,
-    specialTag: String,
-    special: String, //should be a function somehow
-    attack: usize,
-    attackTag: String,
-    specialAttribute: String,
-}
-
 fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
     let offset = id * 20;
     Rect {x: og_spawn.x, y: (og_spawn.y + offset) % 200 + og_spawn.y , w: og_spawn.w, h: og_spawn.h}
 }
+struct TowerTime {
+    tower: usize,
+    time: std::time::Instant
+}
+fn attack_tower(unit: engine::Unit) -> TowerTime {
+    let c = unit.played_card.card;
+    let last_attack_time = unit.t;
+    let dmg = c.attack;
+    let attack_speed = c.attackSpeed;
+    if last_attack_time.elapsed() >= std::time::Duration::from_millis(attack_speed) {
+        // unit.assign_new_time();
+        dbg!(dmg);
+        return TowerTime {
+            tower: dmg,
+            time: std::time::Instant::now()
+        }
+    }
 
-fn attack_tower(unit: engine::Unit, attack_cooldown: std::time::Instant) {
-    let dmg = unit.played_card.card.attack;
+    return TowerTime {
+        tower: 0,
+        time: last_attack_time
+    }
 }
 
 fn main() {
+    let mut tower1_hp = 100;
+    let mut tower2_hp = 100;
+
     let r1 = Rect {
         x: 100,
         y: HEIGHT / 2 - 50,
@@ -122,14 +125,14 @@ fn main() {
     state.drawables.append(&mut played_drawable);
 
     // When 1 is pressed
-    let mut u1 = played_card1.play_unit(unit_id, create_spawn_point(spawn1, unit_id));
+    let u1 = played_card1.play_unit(std::time::Instant::now(), create_spawn_point(spawn1, unit_id));
     unit_id += 1;
     state.p1_units.push(u1);
     // played_card1 = deck.draw_and_remove().play(slots[2].get_rect());
     // TODO: add player cd, and replenish card
     
     // When 8 is pressed
-    let mut u2 = played_card2.play_unit(unit_id, create_spawn_point(spawn2, unit_id));
+    let u2 = played_card2.play_unit(std::time::Instant::now(), create_spawn_point(spawn2, unit_id));
     unit_id += 1;
     state.p2_units.push(u2);
     // played_card2 = deck.draw_and_remove().play(slots[4].get_rect());
@@ -149,23 +152,35 @@ fn main() {
 
             // state.drawables.push(pc5_1);
             for unit in state.p1_units.iter() {
+                let c = unit.played_card.card.clone();
                 if unit.get_rect_x() <= WIDTH - 300 {
-                    p1_unit_drawables.push(unit.move_unit(5));
+                    p1_unit_drawables.push(unit.move_unit(c.speed * 3));
                 } else {
-                    p1_unit_drawables.push(unit.move_unit(0));
-                    // attack!
                     // take damage
+                    let tower_time = attack_tower(unit.get_unit());
+
+                    tower2_hp -= tower_time.tower;
+
+                    p1_unit_drawables.push(unit.assign_new_time(tower_time.time));
+                    dbg!(tower2_hp);
                 }
             }
     
             for unit in state.p2_units.iter() {
+                let c = unit.played_card.card.clone();
+
                 if unit.get_rect_x() >= 300 {
-                    p2_unit_drawables.push(unit.move_unit_back(5));
+                    p2_unit_drawables.push(unit.move_unit_back(c.speed * 3));
                     
                 } else {
-                    p2_unit_drawables.push(unit.move_unit_back(0));
-                    // attack!
                     // take damage
+
+                    let tower_time = attack_tower(unit.get_unit());
+
+                    tower1_hp -= tower_time.tower;
+
+                    p2_unit_drawables.push(unit.assign_new_time(tower_time.time));
+                    dbg!(tower1_hp);
                 }
             }
     

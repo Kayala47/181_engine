@@ -77,7 +77,7 @@ pub struct Card {
     pub attackTag: String,
     pub specialAttribute: String,
     pub speed: usize,
-    pub attackSpeed: usize // lower = better, in milliseconds
+    pub attackSpeed: u64 // lower = better, in milliseconds
 }
 
 impl Drop for Card {
@@ -143,7 +143,7 @@ impl Card {
 
 pub struct Unit {
     pub played_card: PlayedCard,
-    pub id: usize
+    pub t: std::time::Instant
 }
 
 pub struct PlayedCard {
@@ -153,8 +153,15 @@ pub struct PlayedCard {
 
 
 impl Unit {
-    pub fn get_id(&self) -> usize {
-        return self.id;
+    pub fn get_time(&self) -> std::time::Instant {
+        return self.t;
+    }
+
+    pub fn get_unit(&self) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(0),
+            t: self.get_time()
+        }
     }
 
     pub fn get_rect_x(&self) -> usize {
@@ -164,14 +171,21 @@ impl Unit {
     pub fn move_unit(&self, s: usize) -> Unit {
         Unit {
             played_card: self.played_card.move_pc(s),
-            id: self.get_id()
+            t: self.get_time()
         }
     }
 
     pub fn move_unit_back(&self, s: usize) -> Unit {
         Unit {
             played_card: self.played_card.move_pc_back(s),
-            id: self.get_id()
+            t: self.get_time()
+        }
+    }
+
+    pub fn assign_new_time(&self, time: std::time::Instant) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(0),
+            t: time
         }
     }
 }
@@ -201,13 +215,13 @@ impl PlayedCard {
         }
     }
 
-    pub fn play_unit(self, id: usize, pos: Rect) -> Unit {
+    pub fn play_unit(self, t: std::time::Instant, pos: Rect) -> Unit {
         Unit {
             played_card: PlayedCard {
                 card: self.card,
                 rect: pos
             },
-            id: id
+            t: t
         }
     }
 }
