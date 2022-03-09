@@ -209,9 +209,19 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         if event == Event::MainEventsCleared {
 
-            if game_state != GameState::Started {
+            if game_state == GameState::P1Won {
+                let result_string =  "Player 2 has fallen. Player 1 Wins!";
+                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), 100.0);
+                state.drawables.push(result_text);
+                draw(&mut state);
                 return;
-            }
+            } else if game_state == GameState::P2Won {
+                let result_string =  "Player 1 has fallen. Player 2 Wins!";
+                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), 100.0);
+                state.drawables.push(result_text);
+                draw(&mut state);
+                return;
+            } 
             if state.now_keys[VirtualKeyCode::Key1 as usize]
                 && ready_to_play(p1_last_played_t, card1.playCost)
             {
@@ -458,7 +468,7 @@ fn main() {
             for unit in p2_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c2));
             }
-            
+
             let mut health_bar_1 = generate_health_bar(tower1_hp, 1);
             state.drawables.append(&mut health_bar_1);
             let mut health_bar_2 = generate_health_bar(tower2_hp, 2);
