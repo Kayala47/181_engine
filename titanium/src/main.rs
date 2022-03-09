@@ -55,8 +55,8 @@ fn main() {
 
     let mut slots = generate_deck_slots(
         (WIDTH / 10, HEIGHT / 6),
-        5,
-        5,
+        15,
+        15,
         5,
         (0, 0, 0, 255),
         (0, 255, 0, 255),
@@ -81,6 +81,9 @@ fn main() {
             check_and_handle_drag(&mut state);
             draw(&mut state);
         }
+
+
         handle_winit_event(event, control_flow, &mut state);
+
     });
 }
