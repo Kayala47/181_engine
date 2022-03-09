@@ -52,8 +52,7 @@ const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
-const FONT_DATA: &[u8] =
-    include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -77,7 +76,7 @@ pub struct Card {
     pub attackTag: String,
     pub specialAttribute: String,
     pub speed: usize,
-    pub attackSpeed: u64 // lower = better, in milliseconds
+    pub attackSpeed: u64, // lower = better, in milliseconds
 }
 
 impl Drop for Card {
@@ -131,8 +130,6 @@ impl Card {
         }
     }
 
-    
-
     // pub fn move_card(&self, r: Rect, s: usize) -> PlayedCard {
     //     PlayedCard {
     //         card: self.clone(),
@@ -144,14 +141,13 @@ impl Card {
 pub struct Unit {
     pub played_card: PlayedCard,
     pub t: std::time::Instant,
-    pub hp: usize
+    pub hp: usize,
 }
 
 pub struct PlayedCard {
     pub card: Card,
     pub rect: Rect,
 }
-
 
 impl Unit {
     pub fn get_time(&self) -> std::time::Instant {
@@ -162,7 +158,7 @@ impl Unit {
         Unit {
             played_card: self.played_card.move_pc(0),
             t: self.get_time(),
-            hp: self.hp
+            hp: self.hp,
         }
     }
 
@@ -174,7 +170,7 @@ impl Unit {
         Unit {
             played_card: self.played_card.move_pc(s),
             t: self.get_time(),
-            hp: self.hp
+            hp: self.hp,
         }
     }
 
@@ -182,7 +178,7 @@ impl Unit {
         Unit {
             played_card: self.played_card.move_pc_back(s),
             t: self.get_time(),
-            hp: self.hp
+            hp: self.hp,
         }
     }
 
@@ -190,12 +186,10 @@ impl Unit {
         Unit {
             played_card: self.played_card.move_pc(0),
             t: time,
-            hp: self.hp
+            hp: self.hp,
         }
     }
 }
-
-
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
@@ -209,14 +203,14 @@ impl PlayedCard {
     pub fn move_pc(&self, s: usize) -> PlayedCard {
         PlayedCard {
             card: self.card.clone(),
-            rect: move_unit(self.rect.clone(), s)
+            rect: move_unit(self.rect.clone(), s),
         }
     }
 
     pub fn move_pc_back(&self, s: usize) -> PlayedCard {
         PlayedCard {
             card: self.card.clone(),
-            rect: move_back(self.rect.clone(), s)
+            rect: move_back(self.rect.clone(), s),
         }
     }
 
@@ -224,10 +218,10 @@ impl PlayedCard {
         Unit {
             played_card: PlayedCard {
                 card: self.card,
-                rect: pos
+                rect: pos,
             },
             t: t,
-            hp: hp
+            hp: hp,
         }
     }
 }
@@ -368,6 +362,40 @@ pub fn calculate_deck_position(
     )
 }
 
+pub fn calculate_slot_x(
+    slot_num: usize,
+    card_size: (usize, usize),
+    num_slots: usize,
+) -> usize {
+    let (card_width, _) = card_size;
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots);
+    slot_num * spacer_width + (slot_num - 1) * card_width
+}
+
+pub fn calculate_slot_y(
+    is_top: bool,
+    card_padding_bottom: usize,
+    card_padding_top: usize,
+    card_size: (usize, usize)
+) -> usize {
+    if is_top { card_padding_top } else { HEIGHT - card_padding_bottom - card_size.1 }
+}
+
+pub fn get_slot_rect(
+    slot_num: usize,
+    card_size: (usize, usize),
+    num_slots: usize,
+    is_top: bool,
+    card_padding_top: usize,
+    card_padding_bottom: usize
+) -> Rect {
+    let slot_x = calculate_slot_x(slot_num, card_size, num_slots);
+    let slot_y = calculate_slot_y(is_top, card_padding_bottom, card_padding_top, card_size);
+    let (card_width, card_height) = card_size;
+    Rect { x: slot_x, y: slot_y, w: card_width, h: card_height}
+}
+
+
 #[allow(clippy::too_many_arguments)]
 pub fn generate_deck_slots(
     card_size: (usize, usize),
@@ -393,7 +421,6 @@ pub fn generate_deck_slots(
         spacer_background_color,
         None,
     );
-    
     let bottom_container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -406,48 +433,28 @@ pub fn generate_deck_slots(
     );
 
     let mut slot_drawables: Vec<Drawable> = vec![top_container, bottom_container];
-    let card_y = HEIGHT - card_height - (card_padding_bottom);
+    let card_y = calculate_slot_y(false, card_padding_bottom, card_padding_top, card_size);
 
     (1..num_slots + 1).for_each(|slot| {
         let card_x = slot * spacer_width + (slot - 1) * card_width;
         let top_card_slot_background = Drawable::Rectangle(
-            Rect {
-                x: card_x,
-                y: card_padding_top,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(slot, card_size, num_slots, true, card_padding_top, card_padding_bottom),
             slot_background_color,
             None,
         );
         let top_card_slot_frame = Drawable::RectOutlined(
-            Rect {
-                x: card_x,
-                y: card_padding_bottom,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(slot, card_size, num_slots, true, card_padding_top, card_padding_bottom),
             slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
 
         let bottom_card_slot_background = Drawable::Rectangle(
-            Rect {
-                x: card_x,
-                y: card_y,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(slot, card_size, num_slots, false, card_padding_top, card_padding_bottom),
             slot_background_color,
             None,
         );
         let bottom_card_slot_frame = Drawable::RectOutlined(
-            Rect {
-                x: card_x,
-                y: card_y,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(slot, card_size, num_slots, false, card_padding_top, card_padding_bottom),
             slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
@@ -457,7 +464,7 @@ pub fn generate_deck_slots(
         slot_drawables.push(bottom_card_slot_frame);
     });
 
-    let deck_slot_x = (num_slots + 2) * spacer_width + num_slots * card_width;
+    let deck_slot_x = calculate_deck_position(card_size, card_padding_bottom, num_slots).0;
     let top_deck_slot_background = Drawable::Rectangle(
         Rect {
             x: deck_slot_x,
@@ -964,7 +971,7 @@ fn window_size_dependent_setup(
     let mut window_width = dimensions[0].into();
     let mut window_height = dimensions[1].into();
 
-    println!{"window width: {:?}", window_width};
+    println! {"window width: {:?}", window_width};
     (
         images
             .iter()
@@ -982,12 +989,22 @@ fn window_size_dependent_setup(
 }
 
 pub fn move_unit(pos: Rect, speed: usize) -> Rect {
-    let new_pos = Rect {x: pos.x + speed, y: pos.y, w: pos.w, h: pos.h};
+    let new_pos = Rect {
+        x: pos.x + speed,
+        y: pos.y,
+        w: pos.w,
+        h: pos.h,
+    };
     return new_pos;
 }
 
 pub fn move_back(pos: Rect, speed: usize) -> Rect {
-    let new_pos = Rect {x: pos.x - speed, y: pos.y, w: pos.w, h: pos.h};
+    let new_pos = Rect {
+        x: pos.x - speed,
+        y: pos.y,
+        w: pos.w,
+        h: pos.h,
+    };
     return new_pos;
 }
 
@@ -1429,14 +1446,13 @@ pub fn handle_winit_event(
                 },
             window_id: _,
         } => {
-            println!("cursor moved");
             let cursor_x = position.x / state.window_width;
             let cursor_y = position.y / state.window_height;
             state.mouse_coords = (
                 (cursor_x * WIDTH as f64) as usize,
                 (cursor_y * HEIGHT as f64) as usize,
             );
-        },
+        }
         // closest thing to working for Windows :(
         // Event::DeviceEvent { event, .. } => match event {
         //     winit::event::DeviceEvent::Button {
@@ -1457,7 +1473,6 @@ pub fn handle_winit_event(
         //     }
         //     _ => {}
         // },
-
         Event::WindowEvent {
             event:
                 WindowEvent::MouseInput {
@@ -1471,8 +1486,7 @@ pub fn handle_winit_event(
             if button == winit::event::MouseButton::Left {
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
-        },
-        
+        }
         _ => {}
     }
 }

@@ -1,23 +1,34 @@
 use engine::{
-    clear, draw, generate_deck_slots, handle_winit_event,
-    load_cards_from_file, render_character, setup, Color, DraggableSnapType, Drawable, WindowEvent, Event, Rect,
-    VirtualKeyCode, move_unit
+    clear, draw, generate_deck_slots, get_slot_rect, handle_winit_event, load_cards_from_file,
+    move_unit, render_character, setup, Color, DraggableSnapType, Drawable, Event, Rect,
+    VirtualKeyCode, WindowEvent,
 };
+use std::time::{Duration, Instant};
 use winit::event_loop::EventLoop;
-use std::time::{Instant, Duration};
 
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
+
+const CARD_WIDTH: usize = WIDTH / 10;
+const CARD_HEIGHT: usize = HEIGHT / 6;
+const CARD_PADDING_TOP: usize = 5;
+const CARD_PADDING_BOTTOM: usize = 5;
+const NUM_SLOTS: usize = 4;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
 fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
     let offset = id * 20;
-    Rect {x: og_spawn.x, y: (og_spawn.y + offset) % 200 + og_spawn.y , w: og_spawn.w, h: og_spawn.h}
+    Rect {
+        x: og_spawn.x,
+        y: (og_spawn.y + offset) % 200 + og_spawn.y,
+        w: og_spawn.w,
+        h: og_spawn.h,
+    }
 }
 struct TowerTime {
     tower: usize,
-    time: Instant
+    time: Instant,
 }
 fn attack_tower(unit: engine::Unit) -> TowerTime {
     let c = unit.played_card.card;
@@ -29,17 +40,17 @@ fn attack_tower(unit: engine::Unit) -> TowerTime {
         dbg!(dmg);
         return TowerTime {
             tower: dmg,
-            time: Instant::now()
-        }
+            time: Instant::now(),
+        };
     }
 
     return TowerTime {
         tower: 0,
-        time: last_attack_time
-    }
+        time: last_attack_time,
+    };
 }
 
-fn ready_to_play(t: Instant, card_cost: usize) -> bool{
+fn ready_to_play(t: Instant, card_cost: usize) -> bool {
     if t.elapsed() >= Duration::from_secs(card_cost as u64) {
         return true;
     } else {
@@ -78,7 +89,6 @@ fn main() {
         h: 20,
     };
 
-
     let mut unit_id = 0;
 
     let mut deck = load_cards_from_file("../cards2.json");
@@ -87,7 +97,6 @@ fn main() {
     let c1 = (0, 255, 0, 0);
 
     let mut state = setup();
-    
     let event_loop = EventLoop::new();
 
     let mut starting_game_objects: Vec<Drawable> = vec![];
@@ -101,10 +110,10 @@ fn main() {
     let mut p2_last_played_t = Instant::now();
 
     let mut slots = generate_deck_slots(
-        (WIDTH / 10, HEIGHT / 6),
-        5,
-        5,
-        4,
+        (CARD_WIDTH, CARD_HEIGHT),
+        CARD_PADDING_BOTTOM,
+        CARD_PADDING_TOP,
+        NUM_SLOTS,
         (0, 0, 0, 255),
         (0, 255, 0, 255),
         (255, 255, 255, 255),
@@ -120,126 +129,214 @@ fn main() {
     let played_card2 = card2.play(slots[4].get_rect());
     let played_card3 = card3.play(slots[6].get_rect());
     let played_card4 = card4.play(slots[8].get_rect());
-    
     let mut played_drawable = vec![
-        played_card1.get_drawable(), 
-        played_card2.get_drawable(), 
-        played_card3.get_drawable(), 
-        played_card4.get_drawable()
+        played_card1.get_drawable(),
+        played_card2.get_drawable(),
+        played_card3.get_drawable(),
+        played_card4.get_drawable(),
     ];
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut towers);
-    //starting_game_objects.append(&mut played_drawable);
+    starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
     state.drawables.append(&mut played_drawable);
 
     event_loop.run(move |event, _, control_flow| {
-        
         if event == Event::MainEventsCleared {
-            
-            if state.now_keys[VirtualKeyCode::Key1 as usize] {
-                if ready_to_play(p1_last_played_t, card1.playCost) {
-                    let hp = card1.health;
-                    let played_card1 = card1.play(slots[2].get_rect());
-                    let u = played_card1.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
-                    unit_id += 1;
-                    state.p1_units.push(u);
-                    card1 = deck.draw_and_cycle();
-                    p1_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key1 as usize]
+                && ready_to_play(p1_last_played_t, card1.playCost)
+            {
+                let hp = card1.health;
+                let played_card1 = card1.play(get_slot_rect(
+                    1,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card1.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn1, unit_id),
+                );
+                unit_id += 1;
+                state.p1_units.push(u);
+                card1 = deck.draw_and_cycle();
+                p1_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key2 as usize] {
-                if ready_to_play(p1_last_played_t, card2.playCost) {
-                    let hp = card2.health;
-                    let played_card2 = card2.play(slots[4].get_rect());
-                    let u = played_card2.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
-                    unit_id += 1;
-                    state.p1_units.push(u);
-                    card2 = deck.draw_and_cycle();
-                    p1_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key2 as usize]
+                && ready_to_play(p1_last_played_t, card2.playCost)
+            {
+                let hp = card2.health;
+                let played_card2 = card2.play(get_slot_rect(
+                    2,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card2.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn1, unit_id),
+                );
+                unit_id += 1;
+                state.p1_units.push(u);
+                card2 = deck.draw_and_cycle();
+                p1_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key3 as usize] {
-                if ready_to_play(p1_last_played_t, card3.playCost) {
-                    let hp = card3.health;
-                    let played_card3 = card3.play(slots[6].get_rect());
-                    let u = played_card3.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
-                    unit_id += 1;
-                    state.p1_units.push(u);
-                    card3 = deck.draw_and_cycle();
-                    p1_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key3 as usize]
+                && ready_to_play(p1_last_played_t, card3.playCost)
+            {
+                let hp = card3.health;
+                let played_card3 = card3.play(get_slot_rect(
+                    3,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card3.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn1, unit_id),
+                );
+                unit_id += 1;
+                state.p1_units.push(u);
+                card3 = deck.draw_and_cycle();
+                p1_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key4 as usize] {
-                if ready_to_play(p1_last_played_t, card4.playCost) {
-                    let hp = card4.health;
-                    let played_card4 = card4.play(slots[6].get_rect());
-                    let u = played_card4.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
-                    unit_id += 1;
-                    state.p1_units.push(u);
-                    card4 = deck.draw_and_cycle();
-                    p1_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key4 as usize]
+                && ready_to_play(p1_last_played_t, card4.playCost)
+            {
+                let hp = card4.health;
+                let played_card4 = card4.play(get_slot_rect(
+                    4,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card4.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn1, unit_id),
+                );
+                unit_id += 1;
+                state.p1_units.push(u);
+                card4 = deck.draw_and_cycle();
+                p1_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key7 as usize] {
-                if ready_to_play(p2_last_played_t, card1.playCost) {
-                    let hp = card1.health;
-                    let played_card1 = card1.play(slots[2].get_rect());
-                    let u = played_card1.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn2, unit_id));
-                    unit_id += 1;
-                    state.p2_units.push(u);
-                    card1 = deck.draw_and_cycle();
-                    p2_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key7 as usize]
+                && ready_to_play(p2_last_played_t, card1.playCost)
+            {
+                let hp = card1.health;
+                let played_card1 = card1.play(get_slot_rect(
+                    5,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    true,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card1.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn2, unit_id),
+                );
+                unit_id += 1;
+                state.p2_units.push(u);
+                card1 = deck.draw_and_cycle();
+                p2_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key8 as usize] {
-                if ready_to_play(p2_last_played_t, card2.playCost) {
-                    let hp = card2.health;
-                    let played_card2 = card2.play(slots[4].get_rect());
-                    let u = played_card2.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn2, unit_id));
-                    unit_id += 1;
-                    state.p2_units.push(u);
-                    card2 = deck.draw_and_cycle();
-                    p2_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key8 as usize]
+                && ready_to_play(p2_last_played_t, card2.playCost)
+            {
+                let hp = card2.health;
+                let played_card2 = card2.play(get_slot_rect(
+                    6,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    true,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card2.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn2, unit_id),
+                );
+                unit_id += 1;
+                state.p2_units.push(u);
+                card2 = deck.draw_and_cycle();
+                p2_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key9 as usize] {
-                if ready_to_play(p2_last_played_t, card3.playCost) {
-                    let hp = card3.health;
-                    let played_card3 = card3.play(slots[6].get_rect());
-                    let u = played_card3.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn2, unit_id));
-                    unit_id += 1;
-                    state.p2_units.push(u);
-                    card3 = deck.draw_and_cycle();
-                    p2_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key9 as usize]
+                && ready_to_play(p2_last_played_t, card3.playCost)
+            {
+                let hp = card3.health;
+                let played_card3 = card3.play(get_slot_rect(
+                    7,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    true,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card3.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn2, unit_id),
+                );
+                unit_id += 1;
+                state.p2_units.push(u);
+                card3 = deck.draw_and_cycle();
+                p2_last_played_t = Instant::now();
             }
 
-            if state.now_keys[VirtualKeyCode::Key0 as usize] {
-                if ready_to_play(p2_last_played_t, card4.playCost) {
-                    let hp = card4.health;
-                    let played_card4 = card4.play(slots[8].get_rect());
-                    let u = played_card4.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn2, unit_id));
-                    unit_id += 1;
-                    state.p2_units.push(u);
-                    card4 = deck.draw_and_cycle();
-                    p2_last_played_t = Instant::now();
-                }
+            if state.now_keys[VirtualKeyCode::Key0 as usize]
+                && ready_to_play(p2_last_played_t, card4.playCost)
+            {
+                let hp = card4.health;
+                let played_card4 = card4.play(get_slot_rect(
+                    8,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                ));
+                let u = played_card4.play_unit(
+                    std::time::Instant::now(),
+                    hp,
+                    create_spawn_point(spawn2, unit_id),
+                );
+                unit_id += 1;
+                state.p2_units.push(u);
+                card4 = deck.draw_and_cycle();
+                p2_last_played_t = Instant::now();
             }
 
-            let mut cards = vec![played_card1.get_drawable(), played_card2.get_drawable(), played_card3.get_drawable(), played_card4.get_drawable()];
-
+            let mut cards = vec![
+                played_card1.get_drawable(),
+                played_card2.get_drawable(),
+                played_card3.get_drawable(),
+                played_card4.get_drawable(),
+            ];
 
             state.bg_color = BACKGROUND_COLOR;
-            
             let mut p1_unit_drawables = vec![];
             let mut p2_unit_drawables = vec![];
 
@@ -258,13 +355,11 @@ fn main() {
                     // dbg!(tower2_hp);
                 }
             }
-    
             for unit in state.p2_units.iter() {
                 let c = unit.played_card.card.clone();
 
                 if unit.get_rect_x() >= 300 {
                     p2_unit_drawables.push(unit.move_unit_back(c.speed * 3));
-                    
                 } else {
                     // take damage
                     // check if dead
@@ -277,10 +372,8 @@ fn main() {
                     // dbg!(tower1_hp);
                 }
             }
-    
             state.drawables = starting_game_objects.clone();
             state.drawables.append(&mut cards);
-    
             for unit in p1_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c1));
             }
