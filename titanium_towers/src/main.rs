@@ -130,7 +130,7 @@ fn main() {
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut towers);
-    starting_game_objects.append(&mut played_drawable);
+    //starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
     state.drawables.append(&mut played_drawable);
@@ -235,13 +235,14 @@ fn main() {
                 }
             }
 
+            let mut cards = vec![played_card1.get_drawable(), played_card2.get_drawable(), played_card3.get_drawable(), played_card4.get_drawable()];
+
 
             state.bg_color = BACKGROUND_COLOR;
             
             let mut p1_unit_drawables = vec![];
             let mut p2_unit_drawables = vec![];
 
-            // state.drawables.push(pc5_1);
             for unit in state.p1_units.iter() {
                 let c = unit.played_card.card.clone();
                 if unit.get_rect_x() <= WIDTH - 300 {
@@ -278,6 +279,7 @@ fn main() {
             }
     
             state.drawables = starting_game_objects.clone();
+            state.drawables.append(&mut cards);
     
             for unit in p1_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c1));
@@ -286,11 +288,6 @@ fn main() {
             for unit in p2_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c2));
             }
-    
-            // state.drawables.push(played_card1.get_drawable());
-            // state.drawables.push(played_card2.get_drawable());
-            // state.drawables.push(played_card3.get_drawable());
-            // state.drawables.push(played_card4.get_drawable());
 
             state.p1_units = p1_unit_drawables;
             state.p2_units = p2_unit_drawables;
