@@ -15,7 +15,16 @@ const CARD_PADDING_TOP: usize = 5;
 const CARD_PADDING_BOTTOM: usize = 5;
 const NUM_SLOTS: usize = 4;
 
+const TOWER_START_HP: usize = 1000;
+
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
+
+#[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
+enum GameState {
+    Started,
+    P1Won,
+    P2Won
+}
 
 fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
     let offset = id * 20;
@@ -58,9 +67,34 @@ fn ready_to_play(t: Instant, card_cost: usize) -> bool {
     }
 }
 
+fn generate_health_bar(hp: usize, tower: usize) -> Vec<Drawable> {
+    let remaining_health_width = ((hp as f32 / TOWER_START_HP as f32) * 200.0) as usize;
+    let tower_x = if tower == 1 { 100 } else {WIDTH - 300 };
+    let r1 = Rect {
+        x: tower_x,
+        y: HEIGHT / 2 - 70,
+        w: remaining_health_width,
+        h: 10
+    };
+    let r2 = Rect {
+        x: tower_x + remaining_health_width,
+        y: HEIGHT / 2 - 70,
+        w: 200 - remaining_health_width,
+        h: 10
+    };
+
+    let red = (255, 0, 0, 0);
+    let green = (0, 255, 0, 0);
+
+    vec![Drawable::Rectangle(r1, green, None), Drawable::Rectangle(r2, red, None)]
+}
+
 fn main() {
-    let mut tower1_hp = 100;
-    let mut tower2_hp = 100;
+
+    let mut game_state = GameState::Started;
+
+    let mut tower1_hp = TOWER_START_HP;
+    let mut tower2_hp = TOWER_START_HP;
 
     let r1 = Rect {
         x: 100,
@@ -157,7 +191,7 @@ fn main() {
         CARD_PADDING_TOP,
         CARD_PADDING_BOTTOM,
     ));
-    
+
     let mut played_drawable = vec![
         played_card1.get_drawable(),
         played_card2.get_drawable(),
@@ -174,6 +208,10 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         if event == Event::MainEventsCleared {
+
+            if game_state != GameState::Started {
+                return;
+            }
             if state.now_keys[VirtualKeyCode::Key1 as usize]
                 && ready_to_play(p1_last_played_t, card1.playCost)
             {
@@ -377,8 +415,13 @@ fn main() {
                     // take damage
                     // check if dead
                     let tower_time = attack_tower(unit.get_unit());
-
-                    tower2_hp -= tower_time.tower;
+                    if tower_time.tower > tower2_hp {
+                        tower2_hp = 0;
+                        game_state = GameState::P1Won;
+                    } else {
+                        tower2_hp -= tower_time.tower;
+                    }
+                    
 
                     p1_unit_drawables.push(unit.assign_new_time(tower_time.time));
                     // dbg!(tower2_hp);
@@ -395,7 +438,12 @@ fn main() {
 
                     let tower_time = attack_tower(unit.get_unit());
 
-                    tower1_hp -= tower_time.tower;
+                    if tower_time.tower > tower1_hp {
+                        tower1_hp = 0;
+                        game_state = GameState::P2Won;
+                    } else {
+                        tower1_hp -= tower_time.tower;
+                    }
 
                     p2_unit_drawables.push(unit.assign_new_time(tower_time.time));
                     // dbg!(tower1_hp);
@@ -410,6 +458,11 @@ fn main() {
             for unit in p2_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c2));
             }
+            
+            let mut health_bar_1 = generate_health_bar(tower1_hp, 1);
+            state.drawables.append(&mut health_bar_1);
+            let mut health_bar_2 = generate_health_bar(tower2_hp, 2);
+            state.drawables.append(&mut health_bar_2);
 
             state.p1_units = p1_unit_drawables;
             state.p2_units = p2_unit_drawables;
