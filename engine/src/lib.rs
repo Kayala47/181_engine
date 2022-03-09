@@ -53,7 +53,8 @@ const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
-const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA_ROBOTO: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA_CARTER: &[u8] = include_bytes!("../../resources/fonts/CarterOne-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -63,7 +64,7 @@ struct Vertex {
 vulkano::impl_vertex!(Vertex, position, uv);
 
 #[allow(non_snake_case)]
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Card {
     pub name: String,
     pub playCost: usize,
@@ -124,6 +125,24 @@ impl Card {
         )
     }
 
+    pub fn get_clash_description(&self) -> String {
+        let name = &self.name;
+
+        let stats = format!(
+            "HP:{} | Cost: {} \n",
+            self.health, self.specialCost
+        );
+
+        let attack_block = format!("ATK: {} ATK Spd: {}", self.attack, self.attackSpeed);
+
+        let mov_block = format!("MOV Spd: {}", self.speed);
+
+        format!(
+            "{} \n \n {}  \n\n {} \n \n {}",
+            name, stats, attack_block, mov_block
+        )
+    }
+
     pub fn play(&self, r: Rect) -> PlayedCard {
         PlayedCard {
             card: self.clone(),
@@ -145,6 +164,7 @@ pub struct Unit {
     pub hp: usize,
 }
 
+#[derive(Debug)]
 pub struct PlayedCard {
     pub card: Card,
     pub rect: Rect,
@@ -194,9 +214,12 @@ impl Unit {
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
-        Drawable::Text(self.rect, self.card.get_description(), 10.0)
+        Drawable::Text(self.rect, self.card.get_description(), FontFamily::CardTitle, 10.0)
     }
 
+    pub fn get_clash_drawable(&self) -> Drawable {
+        Drawable::Text(self.rect, self.card.get_clash_description(), FontFamily::CardTitle, 10.0)
+    }
     pub fn get_drawable_rect(&self, c: Color) -> Drawable {
         Drawable::Rectangle(self.rect, c, Some(DraggableSnapType::Card(false, false)))
     }
@@ -466,7 +489,9 @@ pub struct State {
     pub initial_mouse_down_coords: Option<FbCoords>,
     pub drag_item_id: Option<usize>,
     pub drag_item_initial_coords: Option<FbCoords>,
-    pub font: fontdue::Font,
+    pub card_body_font: Font,
+    pub card_title_font: Font,
+    pub game_title_font: Font
 }
 
 fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
@@ -761,7 +786,7 @@ pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
     }
 }
 
-pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, font: &Font, size: f32) {
     let fonts = &[font]; //need to make a list
 
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -903,7 +928,7 @@ pub fn check_and_handle_drag(state: &mut State) {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Rect {
     pub x: usize,
     pub y: usize,
@@ -912,16 +937,23 @@ pub struct Rect {
 }
 
 // Two fields, one for whether it can snap to one like it, and whether one like it can snap to it
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum DraggableSnapType {
     Card(bool, bool),
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum FontFamily {
+    CardBody,
+    CardTitle,
+    GameTitle
+}
+
+#[derive(Clone, Debug)]
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
-    Text(Rect, String, f32),
+    Text(Rect, String, FontFamily, f32),
 }
 
 impl Drawable {
@@ -929,7 +961,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => *rect,
             Drawable::RectOutlined(rect, _, _) => *rect,
-            &Drawable::Text(rect, _, _) => rect,
+            &Drawable::Text(rect, _,_, _) => rect,
         }
     }
 
@@ -942,7 +974,7 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
-            &Drawable::Text(rect, _, _) => {
+            &Drawable::Text(rect, _, _,_) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
         }
@@ -952,7 +984,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
-            &Drawable::Text(rect, _, _) => (rect.x, rect.y),
+            &Drawable::Text(rect, _,_, _) => (rect.x, rect.y),
         }
     }
 
@@ -968,7 +1000,7 @@ impl Drawable {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
-            &mut Drawable::Text(mut rect, _, _) => {
+            &mut Drawable::Text(mut rect, _,_, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -986,7 +1018,7 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
-            Drawable::Text(rect, _, _) => {
+            Drawable::Text(rect, _,_, _) => {
                 rect.x = x;
                 rect.y = y;
             }
@@ -997,7 +1029,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
-            &Drawable::Text(_, _, _) => None,
+            &Drawable::Text(_, _,_, _) => None,
         }
     }
 
@@ -1040,8 +1072,12 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(&mut state.fb2d, r, c);
             }
-            Drawable::Text(r, s, size) => {
-                draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
+            Drawable::Text(r, s, family, size) => {
+                match family {
+                    FontFamily::CardBody => draw_layout_text(&mut state.fb2d, s, r, &state.card_body_font, size),
+                    FontFamily::CardTitle => draw_layout_text(&mut state.fb2d, s, r, &state.card_title_font, size),
+                    FontFamily::GameTitle => draw_layout_text(&mut state.fb2d, s, r, &state.game_title_font, size),
+                }
             }
         }
     });
@@ -1228,12 +1264,23 @@ pub fn setup() -> State {
     };
 
     // load in the font used for text rendering
-    let font_settings: fontdue::FontSettings = fontdue::FontSettings {
+    let font_settings_4pt: fontdue::FontSettings = fontdue::FontSettings {
         scale: FONT_SIZE,
         ..fontdue::FontSettings::default()
     };
-    let roboto_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA, font_settings).unwrap();
 
+    let font_settings_12pt: fontdue::FontSettings = fontdue::FontSettings {
+        scale: 12.0,
+        ..fontdue::FontSettings::default()
+    };
+
+    let font_settings_30pt: fontdue::FontSettings = fontdue::FontSettings {
+        scale: 80.0,
+        ..fontdue::FontSettings::default()
+    };
+    let card_body_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_ROBOTO, font_settings_4pt).unwrap();
+    let card_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings_12pt).unwrap();
+    let game_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings_30pt).unwrap();
     // We now create a buffer that will store the shape of our triangl
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
@@ -1434,7 +1481,9 @@ pub fn setup() -> State {
         initial_mouse_down_coords: None,
         drag_item_id: None,
         drag_item_initial_coords: None,
-        font: roboto_font,
+        card_body_font,
+        card_title_font,
+        game_title_font,
     }
 }
 

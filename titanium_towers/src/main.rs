@@ -1,7 +1,7 @@
 use engine::{
     clear, draw, generate_deck_slots, get_slot_rect, handle_winit_event, load_cards_from_file,
     move_unit, render_character, setup, Color, DraggableSnapType, Drawable, Event, Rect,
-    VirtualKeyCode, WindowEvent,
+    VirtualKeyCode, WindowEvent, FontFamily
 };
 use std::time::{Duration, Instant};
 use winit::event_loop::EventLoop;
@@ -126,9 +126,11 @@ fn main() {
     let mut unit_id = 0;
 
     let mut deck = load_cards_from_file("../cards2.json");
-
-    let c2 = (255, 0, 0, 0);
-    let c1 = (0, 255, 0, 0);
+    
+    
+    let c1 = (0, 0, 255, 0);
+    let c2 = (255, 255, 0, 0);
+    
 
     let mut state = setup();
     let event_loop = EventLoop::new();
@@ -142,6 +144,9 @@ fn main() {
 
     let mut p1_last_played_t = Instant::now();
     let mut p2_last_played_t = Instant::now();
+
+    let mut p1_cooldown_total: usize = 0;
+    let mut p2_cooldown_total: usize = 0; // playcost
 
     let mut slots = generate_deck_slots(
         (CARD_WIDTH, CARD_HEIGHT),
@@ -193,15 +198,15 @@ fn main() {
     ));
 
     let mut played_drawable = vec![
-        played_card1.get_drawable(),
-        played_card2.get_drawable(),
-        played_card3.get_drawable(),
-        played_card4.get_drawable(),
+        played_card1.get_clash_drawable(),
+        played_card2.get_clash_drawable(),
+        played_card3.get_clash_drawable(),
+        played_card4.get_clash_drawable(),
     ];
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut towers);
-    starting_game_objects.append(&mut played_drawable);
+    // starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
     state.drawables.append(&mut played_drawable);
@@ -211,13 +216,13 @@ fn main() {
 
             if game_state == GameState::P1Won {
                 let result_string =  "Player 2 has fallen. Player 1 Wins!";
-                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), 100.0);
+                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), FontFamily::GameTitle, 100.0);
                 state.drawables.push(result_text);
                 draw(&mut state);
                 return;
             } else if game_state == GameState::P2Won {
                 let result_string =  "Player 1 has fallen. Player 2 Wins!";
-                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), 100.0);
+                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), FontFamily::GameTitle, 100.0);
                 state.drawables.push(result_text);
                 draw(&mut state);
                 return;
@@ -405,13 +410,45 @@ fn main() {
                 card4 = deck.draw_and_cycle();
                 p2_last_played_t = Instant::now();
             }
-
+            // dbg!(&played_card1);
             let mut cards = vec![
-                played_card1.get_drawable(),
-                played_card2.get_drawable(),
-                played_card3.get_drawable(),
-                played_card4.get_drawable(),
+                card1.play(get_slot_rect(
+                    1,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                )).get_clash_drawable(),
+                card2.play(get_slot_rect(
+                    2,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                )).get_clash_drawable(),
+                card3.play(get_slot_rect(
+                    3,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                )).get_clash_drawable(),
+                card4.play(get_slot_rect(
+                    4,
+                    (CARD_WIDTH, CARD_HEIGHT),
+                    NUM_SLOTS,
+                    false,
+                    CARD_PADDING_TOP,
+                    CARD_PADDING_BOTTOM,
+                )).get_clash_drawable(),
             ];
+            
+            // dbg!(played_card1.get_clash_drawable());
+            // dbg!(&cards[0]);
+
 
             state.bg_color = BACKGROUND_COLOR;
             let mut p1_unit_drawables = vec![];
