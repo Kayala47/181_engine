@@ -125,10 +125,39 @@ fn main() {
     let mut card2 = deck.draw_and_cycle();
     let mut card3 = deck.draw_and_cycle();
     let mut card4 = deck.draw_and_cycle();
-    let played_card1 = card1.play(slots[2].get_rect());
-    let played_card2 = card2.play(slots[4].get_rect());
-    let played_card3 = card3.play(slots[6].get_rect());
-    let played_card4 = card4.play(slots[8].get_rect());
+    let played_card1 = card1.play(get_slot_rect(
+        1,
+        (CARD_WIDTH, CARD_HEIGHT),
+        NUM_SLOTS,
+        false,
+        CARD_PADDING_TOP,
+        CARD_PADDING_BOTTOM,
+    ));
+    let played_card2 = card2.play(get_slot_rect(
+        2,
+        (CARD_WIDTH, CARD_HEIGHT),
+        NUM_SLOTS,
+        false,
+        CARD_PADDING_TOP,
+        CARD_PADDING_BOTTOM,
+    ));
+    let played_card3 = card3.play(get_slot_rect(
+        3,
+        (CARD_WIDTH, CARD_HEIGHT),
+        NUM_SLOTS,
+        false,
+        CARD_PADDING_TOP,
+        CARD_PADDING_BOTTOM,
+    ));
+    let played_card4 = card4.play(get_slot_rect(
+        4,
+        (CARD_WIDTH, CARD_HEIGHT),
+        NUM_SLOTS,
+        false,
+        CARD_PADDING_TOP,
+        CARD_PADDING_BOTTOM,
+    ));
+    
     let mut played_drawable = vec![
         played_card1.get_drawable(),
         played_card2.get_drawable(),
