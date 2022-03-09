@@ -143,7 +143,8 @@ impl Card {
 
 pub struct Unit {
     pub played_card: PlayedCard,
-    pub t: std::time::Instant
+    pub t: std::time::Instant,
+    pub hp: usize
 }
 
 pub struct PlayedCard {
@@ -160,7 +161,8 @@ impl Unit {
     pub fn get_unit(&self) -> Unit {
         Unit {
             played_card: self.played_card.move_pc(0),
-            t: self.get_time()
+            t: self.get_time(),
+            hp: self.hp
         }
     }
 
@@ -171,21 +173,24 @@ impl Unit {
     pub fn move_unit(&self, s: usize) -> Unit {
         Unit {
             played_card: self.played_card.move_pc(s),
-            t: self.get_time()
+            t: self.get_time(),
+            hp: self.hp
         }
     }
 
     pub fn move_unit_back(&self, s: usize) -> Unit {
         Unit {
             played_card: self.played_card.move_pc_back(s),
-            t: self.get_time()
+            t: self.get_time(),
+            hp: self.hp
         }
     }
 
     pub fn assign_new_time(&self, time: std::time::Instant) -> Unit {
         Unit {
             played_card: self.played_card.move_pc(0),
-            t: time
+            t: time,
+            hp: self.hp
         }
     }
 }
@@ -215,13 +220,14 @@ impl PlayedCard {
         }
     }
 
-    pub fn play_unit(self, t: std::time::Instant, pos: Rect) -> Unit {
+    pub fn play_unit(self, t: std::time::Instant, hp: usize, pos: Rect) -> Unit {
         Unit {
             played_card: PlayedCard {
                 card: self.card,
                 rect: pos
             },
-            t: t
+            t: t,
+            hp: hp
         }
     }
 }

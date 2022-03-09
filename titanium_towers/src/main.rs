@@ -4,8 +4,7 @@ use engine::{
     VirtualKeyCode, move_unit
 };
 use winit::event_loop::EventLoop;
-
-
+use std::time::{Instant, Duration};
 
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
@@ -18,25 +17,33 @@ fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
 }
 struct TowerTime {
     tower: usize,
-    time: std::time::Instant
+    time: Instant
 }
 fn attack_tower(unit: engine::Unit) -> TowerTime {
     let c = unit.played_card.card;
     let last_attack_time = unit.t;
     let dmg = c.attack;
     let attack_speed = c.attackSpeed;
-    if last_attack_time.elapsed() >= std::time::Duration::from_millis(attack_speed) {
-        // unit.assign_new_time();
+    if last_attack_time.elapsed() >= Duration::from_millis(attack_speed) {
+        dbg!(c.name.clone());
         dbg!(dmg);
         return TowerTime {
             tower: dmg,
-            time: std::time::Instant::now()
+            time: Instant::now()
         }
     }
 
     return TowerTime {
         tower: 0,
         time: last_attack_time
+    }
+}
+
+fn ready_to_play(t: Instant, card_cost: usize) -> bool{
+    if t.elapsed() >= Duration::from_secs(card_cost as u64) {
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -78,20 +85,20 @@ fn main() {
 
     let c2 = (255, 0, 0, 0);
     let c1 = (0, 255, 0, 0);
-    let c3 = (0, 0, 255, 0);
 
     let mut state = setup();
-    // state.bg_color = BACKGROUND_COLOR;
+    
     let event_loop = EventLoop::new();
 
     let mut starting_game_objects: Vec<Drawable> = vec![];
-
-    let text: String = "hello".to_string();
 
     let mut towers = vec![
         Drawable::Rectangle(r1, c1, Some(DraggableSnapType::Card(false, false))),
         Drawable::Rectangle(r2, c2, Some(DraggableSnapType::Card(false, false))),
     ];
+
+    let mut p1_last_played_t = Instant::now();
+    let mut p2_last_played_t = Instant::now();
 
     let mut slots = generate_deck_slots(
         (WIDTH / 10, HEIGHT / 6),
@@ -105,10 +112,10 @@ fn main() {
     );
 
     deck.shuffle();
-    let played_card1 = deck.draw_and_remove().play(slots[2].get_rect());
-    let played_card2 = deck.draw_and_remove().play(slots[4].get_rect());
-    let played_card3 = deck.draw_and_remove().play(slots[6].get_rect());
-    let played_card4 = deck.draw_and_remove().play(slots[8].get_rect());
+    let played_card1 = deck.draw_and_cycle().play(slots[2].get_rect());
+    let played_card2 = deck.draw_and_cycle().play(slots[4].get_rect());
+    let played_card3 = deck.draw_and_cycle().play(slots[6].get_rect());
+    let played_card4 = deck.draw_and_cycle().play(slots[8].get_rect());
     
     let mut played_drawable = vec![
         played_card1.get_drawable(), 
@@ -119,30 +126,91 @@ fn main() {
 
     starting_game_objects.append(&mut slots);
     starting_game_objects.append(&mut towers);
-    //starting_game_objects.append(&mut played_drawable);
+    starting_game_objects.append(&mut played_drawable);
 
     state.drawables = starting_game_objects.clone();
     state.drawables.append(&mut played_drawable);
 
+    // --------------------
+    // HEY EVAN LOOK HERE!!!
+
+    // PLAYER 1 KEYS:
     // When 1 is pressed
-    let u1 = played_card1.play_unit(std::time::Instant::now(), create_spawn_point(spawn1, unit_id));
-    unit_id += 1;
-    state.p1_units.push(u1);
-    // played_card1 = deck.draw_and_remove().play(slots[2].get_rect());
-    // TODO: add player cd, and replenish card
+    if ready_to_play(p1_last_played_t, played_card1.card.playCost) {
+        let hp = played_card1.card.health;
+        let u = played_card1.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 1
+    }
+
+    // When 2 is pressed
+    if ready_to_play(p1_last_played_t, played_card2.card.playCost) {
+        let hp = played_card2.card.health;
+        let u = played_card2.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 2
+    }
+
+    // When 3 is pressed
+    if ready_to_play(p1_last_played_t, played_card3.card.playCost) {
+        let hp = played_card3.card.health;
+        let u = played_card3.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 3
+    }
+
+    // When 4 is pressed
+    if ready_to_play(p1_last_played_t, played_card4.card.playCost) {
+        let hp = played_card4.card.health;
+        let u = played_card4.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 4
+    }
+    
+    // PLAYER 2 KEYS:
+    // When 7 is pressed
+    if ready_to_play(p2_last_played_t, played_card1.card.playCost) {
+        let hp = played_card1.card.health;
+        let u = played_card1.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 1
+    }
     
     // When 8 is pressed
-    let u2 = played_card2.play_unit(std::time::Instant::now(), create_spawn_point(spawn2, unit_id));
-    unit_id += 1;
-    state.p2_units.push(u2);
-    // played_card2 = deck.draw_and_remove().play(slots[4].get_rect());
-    // TODO: add player cd, and replenish card
-
-    // TODO: add more button presses for each player
-        
+    if ready_to_play(p2_last_played_t, played_card2.card.playCost) {
+        let hp = played_card2.card.health;
+        let u = played_card2.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 2
+    }
     
+    // When 9 is pressed
+    if ready_to_play(p2_last_played_t, played_card3.card.playCost) {
+        let hp = played_card3.card.health;
+        let u = played_card3.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 3
+    }
+    
+    // When 0 is pressed
+    if ready_to_play(p2_last_played_t, played_card4.card.playCost) {
+        let hp = played_card4.card.health;
+        let u = played_card4.play_unit(std::time::Instant::now(), hp, create_spawn_point(spawn1, unit_id));
+        unit_id += 1;
+        state.p1_units.push(u);
+        // TODO: replenish card to slot 4
+    }
+   
+    // --------------------
+
     event_loop.run(move |event, _, control_flow| {
-       
         
         if event == Event::MainEventsCleared {
             state.bg_color = BACKGROUND_COLOR;
@@ -157,12 +225,13 @@ fn main() {
                     p1_unit_drawables.push(unit.move_unit(c.speed * 3));
                 } else {
                     // take damage
+                    // check if dead
                     let tower_time = attack_tower(unit.get_unit());
 
                     tower2_hp -= tower_time.tower;
 
                     p1_unit_drawables.push(unit.assign_new_time(tower_time.time));
-                    dbg!(tower2_hp);
+                    // dbg!(tower2_hp);
                 }
             }
     
@@ -174,13 +243,14 @@ fn main() {
                     
                 } else {
                     // take damage
+                    // check if dead
 
                     let tower_time = attack_tower(unit.get_unit());
 
                     tower1_hp -= tower_time.tower;
 
                     p2_unit_drawables.push(unit.assign_new_time(tower_time.time));
-                    dbg!(tower1_hp);
+                    // dbg!(tower1_hp);
                 }
             }
     
