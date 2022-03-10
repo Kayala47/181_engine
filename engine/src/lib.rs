@@ -131,7 +131,7 @@ impl Card {
 
         let stats = format!(
             "HP:{} | Cost: {} \n",
-            self.health, self.specialCost
+            self.health, self.playCost
         );
 
         let attack_block = format!("ATK: {} ATK Spd: {}", self.attack, self.attackSpeed);
