@@ -51,7 +51,6 @@ pub type Color = (u8, u8, u8, u8);
 pub type FbCoords = (usize, usize);
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
-const CARD_SIZE: (usize, usize) = (30, 40);
 const FONT_SIZE: f32 = 4.0;
 const FONT_DATA_ROBOTO: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 const FONT_DATA_CARTER: &[u8] = include_bytes!("../../resources/fonts/CarterOne-Regular.ttf") as &[u8];
@@ -149,13 +148,6 @@ impl Card {
             rect: r,
         }
     }
-
-    // pub fn move_card(&self, r: Rect, s: usize) -> PlayedCard {
-    //     PlayedCard {
-    //         card: self.clone(),
-    //         rect: move_unit(r, s),
-    //     }
-    // }
 }
 
 pub struct Unit {
@@ -249,140 +241,6 @@ impl PlayedCard {
         }
     }
 }
-
-// pub struct Animation {
-//     // Do this for the exercise today!
-// // You'll want to know the frames involved and the timing for each frame
-// }
-
-// pub struct AnimationState {
-//     // Here you'll need to track how far along in the animation you are.
-// // You can also choose to have an Rc<Animation> to refer to the animation in use.
-// // But you could also decide to just pass around the animation and state together
-// // where needed.
-// // Could be ticked in-place with a function like tick(&mut self)
-// }
-
-// impl Animation {
-//     // Should hold some data...
-//     // Be used to decide what frame to use...
-//     // Could have a query function like current_frame(&self, start_time:usize, now:usize, speedup_factor:usize)
-// }
-
-// pub struct Sprite {
-//     image: Rc<Image>,
-//     // For example, but this is just one way to do it:
-//     animations: Vec<Animation>,
-//     animation_state: AnimationState,
-// }
-
-// impl Sprite {
-//     // maybe some play_animation() function to start a new animation!
-//     // maybe some draw() function to draw the sprite!
-//     // and a tick_animation() function to advance the animation state
-// }
-
-// pub trait DrawSpriteExt {
-//     fn draw_sprite(&mut self, s: &Sprite, pos: Vec2i);
-// }
-
-// #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
-// pub struct Vec2 {  // Or Vec2f for floats?
-//     pub x:f32,
-//     pub y:f32
-// }
-
-// #[derive(PartialEq, Eq, Clone, Copy, Hash, Debug)]
-// pub struct Vec2i {  // Or Vec2f for floats?
-//     pub x:i32,
-//     pub y:i32
-// }
-
-// impl Vec2i {
-//     pub fn new(x:i32,y:i32) -> Vec2i {
-//         Vec2i{x,y}
-//     }
-//     // Maybe add functions for e.g. the midpoint of two vecs, or...
-// }
-
-// pub struct Image {
-//     pub buffer: Box<[Color]>, // or Vec<Color>, or...
-//     pub w: usize,
-//     pub h: usize,
-// }
-
-// impl Image {
-//     fn bitblt(src: &Image, from: Rect, dst: &mut Image, to: Vec2) {
-//         assert!(rect_inside(from, (0, 0, src_size.0, src_size.1)));
-//         let (to_x, to_y) = to;
-//         if (to_x + from.2 as i32) < 0
-//             || (dst_size.0 as i32) <= to_x
-//             || (to_y + from.3 as i32) < 0
-//             || (dst_size.1 as i32) <= to_y
-//         {
-//             return;
-//         }
-//         let src_pitch = src_size.0;
-//         let dst_pitch = dst_size.0;
-//         // All this rigmarole is just to avoid bounds checks on each pixel of the blit.
-//         // We want to calculate which row/col of the src image to start at and which to end at.
-//         // This way there's no need to even check for out of bounds draws---
-//         // we'll skip rows that are off the top or off the bottom of the image
-//         // and skip columns off the left or right sides.
-//         let y_skip = to_y.max(0) - to_y;
-//         let x_skip = to_x.max(0) - to_x;
-//         let y_count = (to_y + from.3 as i32).min(dst_size.1 as i32) - to_y;
-//         let x_count = (to_x + from.2 as i32).min(dst_size.0 as i32) - to_x;
-//         // The code above is gnarly so these are just for safety:
-//         debug_assert!(0 <= x_skip);
-//         debug_assert!(0 <= y_skip);
-//         debug_assert!(0 <= x_count);
-//         debug_assert!(0 <= y_count);
-//         debug_assert!(x_count <= from.2 as i32);
-//         debug_assert!(y_count <= from.3 as i32);
-//         debug_assert!(0 <= to_x + x_skip);
-//         debug_assert!(0 <= to_y + y_skip);
-//         debug_assert!(0 <= from.0 as i32 + x_skip);
-//         debug_assert!(0 <= from.1 as i32 + y_skip);
-//         debug_assert!(to_x + x_count <= dst_size.0 as i32);
-//         debug_assert!(to_y + y_count <= dst_size.1 as i32);
-//         // OK, let's do some copying now
-//         for (row_a, row_b) in src
-// // From the first pixel of the top row to the first pixel of the row past the bottom...
-//         [(src_pitch * (from.1 as i32 + y_skip) as usize)..(src_pitch * (from.1 as i32 + y_count) as usize)]
-// // For each whole row...
-//         .chunks_exact(src_pitch)
-// // Tie it up with the corresponding row from dst
-//         .zip(
-//             dst[(dst_pitch * (to_y + y_skip) as usize)
-//                 ..(dst_pitch * (to_y + y_count) as usize)]
-//                 .chunks_exact_mut(dst_pitch),
-//         )
-//         {
-//             // Get column iterators, save on indexing overhead
-//             let to_cols = row_b
-//                 [((to_x + x_skip) as usize)..((to_x + x_count) as usize)].iter_mut();
-//             let from_cols = row_a
-//                 [((from.0 as i32 + x_skip) as usize)..((from.0 as i32 + x_count) as usize)].iter();
-//             // Composite over, assume premultiplied rgba8888 in src!
-//             for (to, from) in to_cols.zip(from_cols) {
-//                 let ta = to.3 as f32 / 255.0;
-//                 let fa = from.3 as f32 / 255.0;
-//                 to.0 = from.0.saturating_add((to.0 as f32 * (1.0 - fa)).round() as u8);
-//                 to.1 = from.1.saturating_add((to.1 as f32 * (1.0 - fa)).round() as u8);
-//                 to.2 = from.2.saturating_add((to.2 as f32 * (1.0 - fa)).round() as u8);
-//                 to.3 = ((fa + ta * (1.0 - fa)) * 255.0).round() as u8;
-//             }
-//         }
-//     }
-// }
-// impl DrawSpriteExt for Image {
-//     fn draw_sprite(&mut self, s: &Sprite, pos: Vec2i) {
-//         // This works because we're only using a public method of Screen here,
-//         // and the private fields of Sprite are visible inside this module
-//         self.bitblt(&s.image, s.animation_state.current_frame(), pos);
-//     }
-// }
 
 #[derive(Clone, Deserialize)]
 pub struct Deck {
@@ -490,7 +348,6 @@ pub struct State {
     pub drag_item_id: Option<usize>,
     pub drag_item_initial_coords: Option<FbCoords>,
     pub card_body_font: Font,
-    pub card_title_font: Font,
     pub game_title_font: Font
 }
 
@@ -570,6 +427,7 @@ pub fn generate_deck_slots(
     deck_slot_background_color: Color,
     slot_border_color: Color,
     spacer_background_color: Color,
+    is_top: bool
 ) -> Vec<Drawable> {
     let (card_width, card_height) = card_size;
     assert!(card_width * (num_slots + 1) < WIDTH);
@@ -596,7 +454,8 @@ pub fn generate_deck_slots(
         None,
     );
 
-    let mut slot_drawables: Vec<Drawable> = vec![top_container, bottom_container];
+    let mut slot_drawables: Vec<Drawable> = vec![bottom_container];
+    if is_top { slot_drawables.push(top_container) };
     let card_y = calculate_slot_y(false, card_padding_bottom, card_padding_top, card_size);
 
     (1..num_slots + 1).for_each(|slot| {
@@ -650,8 +509,11 @@ pub fn generate_deck_slots(
             slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
-        slot_drawables.push(top_card_slot_background);
-        slot_drawables.push(top_card_slot_frame);
+
+        if is_top {
+            slot_drawables.push(top_card_slot_background);
+            slot_drawables.push(top_card_slot_frame);
+        }
         slot_drawables.push(bottom_card_slot_background);
         slot_drawables.push(bottom_card_slot_frame);
     });
@@ -697,8 +559,11 @@ pub fn generate_deck_slots(
         slot_border_color,
         Some(DraggableSnapType::Card(false, true)),
     );
-    slot_drawables.push(top_deck_slot_background);
-    slot_drawables.push(top_deck_slot_frame);
+
+    if is_top {
+        slot_drawables.push(top_deck_slot_background);
+        slot_drawables.push(top_deck_slot_frame);
+    }
     slot_drawables.push(bottom_deck_slot_background);
     slot_drawables.push(bottom_deck_slot_frame);
     slot_drawables
@@ -1075,7 +940,7 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             Drawable::Text(r, s, family, size) => {
                 match family {
                     FontFamily::CardBody => draw_layout_text(&mut state.fb2d, s, r, &state.card_body_font, size),
-                    FontFamily::CardTitle => draw_layout_text(&mut state.fb2d, s, r, &state.card_title_font, size),
+                    FontFamily::CardTitle => draw_layout_text(&mut state.fb2d, s, r, &state.game_title_font, size),
                     FontFamily::GameTitle => draw_layout_text(&mut state.fb2d, s, r, &state.game_title_font, size),
                 }
             }
@@ -1264,23 +1129,10 @@ pub fn setup() -> State {
     };
 
     // load in the font used for text rendering
-    let font_settings_4pt: fontdue::FontSettings = fontdue::FontSettings {
-        scale: FONT_SIZE,
-        ..fontdue::FontSettings::default()
-    };
+    let font_settings: fontdue::FontSettings = fontdue::FontSettings::default();
 
-    let font_settings_12pt: fontdue::FontSettings = fontdue::FontSettings {
-        scale: 12.0,
-        ..fontdue::FontSettings::default()
-    };
-
-    let font_settings_30pt: fontdue::FontSettings = fontdue::FontSettings {
-        scale: 80.0,
-        ..fontdue::FontSettings::default()
-    };
-    let card_body_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_ROBOTO, font_settings_4pt).unwrap();
-    let card_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings_12pt).unwrap();
-    let game_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings_30pt).unwrap();
+    let card_body_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_ROBOTO, font_settings).unwrap();
+    let game_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings).unwrap();
     // We now create a buffer that will store the shape of our triangl
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
@@ -1482,7 +1334,6 @@ pub fn setup() -> State {
         drag_item_id: None,
         drag_item_initial_coords: None,
         card_body_font,
-        card_title_font,
         game_title_font,
     }
 }

@@ -1,7 +1,7 @@
 use engine::{
     clear, draw, generate_deck_slots, get_slot_rect, handle_winit_event, load_cards_from_file,
-    move_unit, render_character, setup, Color, DraggableSnapType, Drawable, Event, Rect,
-    VirtualKeyCode, WindowEvent, FontFamily
+    move_unit, render_character, setup, Color, DraggableSnapType, Drawable, Event, FontFamily,
+    Rect, VirtualKeyCode, WindowEvent,
 };
 use std::time::{Duration, Instant};
 use winit::event_loop::EventLoop;
@@ -15,7 +15,7 @@ const CARD_PADDING_TOP: usize = 5;
 const CARD_PADDING_BOTTOM: usize = 5;
 const NUM_SLOTS: usize = 4;
 
-const TOWER_START_HP: usize = 1000;
+const TOWER_START_HP: usize = 10;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
@@ -23,7 +23,7 @@ const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 enum GameState {
     Started,
     P1Won,
-    P2Won
+    P2Won,
 }
 
 fn create_spawn_point(og_spawn: Rect, id: usize) -> Rect {
@@ -53,44 +53,42 @@ fn attack_tower(unit: engine::Unit) -> TowerTime {
         };
     }
 
-    return TowerTime {
+    TowerTime {
         tower: 0,
         time: last_attack_time,
-    };
+    }
 }
 
 fn ready_to_play(t: Instant, card_cost: usize) -> bool {
-    if t.elapsed() >= Duration::from_secs(card_cost as u64) {
-        return true;
-    } else {
-        return false;
-    }
+    t.elapsed() >= Duration::from_secs(card_cost as u64)
 }
 
 fn generate_health_bar(hp: usize, tower: usize) -> Vec<Drawable> {
     let remaining_health_width = ((hp as f32 / TOWER_START_HP as f32) * 200.0) as usize;
-    let tower_x = if tower == 1 { 100 } else {WIDTH - 300 };
+    let tower_x = if tower == 1 { 100 } else { WIDTH - 300 };
     let r1 = Rect {
         x: tower_x,
         y: HEIGHT / 2 - 70,
         w: remaining_health_width,
-        h: 10
+        h: 10,
     };
     let r2 = Rect {
         x: tower_x + remaining_health_width,
         y: HEIGHT / 2 - 70,
         w: 200 - remaining_health_width,
-        h: 10
+        h: 10,
     };
 
     let red = (255, 0, 0, 0);
     let green = (0, 255, 0, 0);
 
-    vec![Drawable::Rectangle(r1, green, None), Drawable::Rectangle(r2, red, None)]
+    vec![
+        Drawable::Rectangle(r1, green, None),
+        Drawable::Rectangle(r2, red, None),
+    ]
 }
 
 fn main() {
-
     let mut game_state = GameState::Started;
 
     let mut tower1_hp = TOWER_START_HP;
@@ -126,11 +124,8 @@ fn main() {
     let mut unit_id = 0;
 
     let mut deck = load_cards_from_file("../cards2.json");
-    
-    
     let c1 = (0, 0, 255, 0);
     let c2 = (255, 255, 0, 0);
-    
 
     let mut state = setup();
     let event_loop = EventLoop::new();
@@ -145,9 +140,6 @@ fn main() {
     let mut p1_last_played_t = Instant::now();
     let mut p2_last_played_t = Instant::now();
 
-    let mut p1_cooldown_total: usize = 0;
-    let mut p2_cooldown_total: usize = 0; // playcost
-
     let mut slots = generate_deck_slots(
         (CARD_WIDTH, CARD_HEIGHT),
         CARD_PADDING_BOTTOM,
@@ -157,6 +149,7 @@ fn main() {
         (0, 255, 0, 255),
         (255, 255, 255, 255),
         (220, 220, 250, 255),
+        false
     );
 
     deck.shuffle();
@@ -213,21 +206,42 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         if event == Event::MainEventsCleared {
-
             if game_state == GameState::P1Won {
-                let result_string =  "Player 2 has fallen. Player 1 Wins!";
-                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), FontFamily::GameTitle, 100.0);
+                let result_string = "Player 2 has fallen. Player 1 Wins!";
+                let result_text = Drawable::Text(
+                    Rect {
+                        x: 30,
+                        y: 30,
+                        w: WIDTH - 30,
+                        h: 200,
+                    },
+                    result_string.to_string(),
+                    FontFamily::GameTitle,
+                    20.0,
+                );
                 state.drawables.push(result_text);
                 draw(&mut state);
                 return;
             } else if game_state == GameState::P2Won {
-                let result_string =  "Player 1 has fallen. Player 2 Wins!";
-                let result_text = Drawable::Text(Rect{x: 30, y: HEIGHT / 2 - 20, w: WIDTH - 60, h: 40 }, result_string.to_string(), FontFamily::GameTitle, 100.0);
+                let result_string = "Player 1 has fallen. Player 2 Wins!";
+                let result_text = Drawable::Text(
+                    Rect {
+                        x: 30,
+                        y: 30,
+                        w: WIDTH - 30,
+                        h: 200,
+                    },
+                    result_string.to_string(),
+                    FontFamily::GameTitle,
+                    12.0,
+                );
                 state.drawables.push(result_text);
                 draw(&mut state);
                 return;
-            } 
+            }
+
             if state.now_keys[VirtualKeyCode::Key1 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key1 as usize]
                 && ready_to_play(p1_last_played_t, card1.playCost)
             {
                 let hp = card1.health;
@@ -246,11 +260,16 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p1_units.push(u);
+
+                let dur = Duration::from_secs(card1.playCost as u64);
+                dbg!(p1_last_played_t);
+                p1_last_played_t += dur;
+                dbg!(p1_last_played_t);
                 card1 = deck.draw_and_cycle();
-                p1_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key2 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key2 as usize]
                 && ready_to_play(p1_last_played_t, card2.playCost)
             {
                 let hp = card2.health;
@@ -269,11 +288,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p1_units.push(u);
+
+                let dur = Duration::from_secs(card2.playCost as u64);
+                p1_last_played_t += dur;
+
                 card2 = deck.draw_and_cycle();
-                p1_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key3 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key3 as usize]
                 && ready_to_play(p1_last_played_t, card3.playCost)
             {
                 let hp = card3.health;
@@ -292,11 +315,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p1_units.push(u);
+
+                let dur = Duration::from_secs(card3.playCost as u64);
+                p1_last_played_t += dur;
+
                 card3 = deck.draw_and_cycle();
-                p1_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key4 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key4 as usize]
                 && ready_to_play(p1_last_played_t, card4.playCost)
             {
                 let hp = card4.health;
@@ -315,11 +342,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p1_units.push(u);
+
+                let dur = Duration::from_secs(card4.playCost as u64);
+                p1_last_played_t += dur;
+
                 card4 = deck.draw_and_cycle();
-                p1_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key7 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key7 as usize]
                 && ready_to_play(p2_last_played_t, card1.playCost)
             {
                 let hp = card1.health;
@@ -338,11 +369,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p2_units.push(u);
+
+                let dur = Duration::from_secs(card1.playCost as u64);
+                p2_last_played_t += dur;
+
                 card1 = deck.draw_and_cycle();
-                p2_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key8 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key8 as usize]
                 && ready_to_play(p2_last_played_t, card2.playCost)
             {
                 let hp = card2.health;
@@ -361,11 +396,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p2_units.push(u);
+
+                let dur = Duration::from_secs(card2.playCost as u64);
+                p2_last_played_t += dur;
+
                 card2 = deck.draw_and_cycle();
-                p2_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key9 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key9 as usize]
                 && ready_to_play(p2_last_played_t, card3.playCost)
             {
                 let hp = card3.health;
@@ -384,11 +423,15 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p2_units.push(u);
+
+                let dur = Duration::from_secs(card3.playCost as u64);
+                p2_last_played_t += dur;
+
                 card3 = deck.draw_and_cycle();
-                p2_last_played_t = Instant::now();
             }
 
             if state.now_keys[VirtualKeyCode::Key0 as usize]
+                && !state.prev_keys[VirtualKeyCode::Key0 as usize]
                 && ready_to_play(p2_last_played_t, card4.playCost)
             {
                 let hp = card4.health;
@@ -407,48 +450,84 @@ fn main() {
                 );
                 unit_id += 1;
                 state.p2_units.push(u);
+
+                let dur = Duration::from_secs(card4.playCost as u64);
+                p2_last_played_t += dur;
+
                 card4 = deck.draw_and_cycle();
-                p2_last_played_t = Instant::now();
             }
             // dbg!(&played_card1);
             let mut cards = vec![
-                card1.play(get_slot_rect(
-                    1,
-                    (CARD_WIDTH, CARD_HEIGHT),
-                    NUM_SLOTS,
-                    false,
-                    CARD_PADDING_TOP,
-                    CARD_PADDING_BOTTOM,
-                )).get_clash_drawable(),
-                card2.play(get_slot_rect(
-                    2,
-                    (CARD_WIDTH, CARD_HEIGHT),
-                    NUM_SLOTS,
-                    false,
-                    CARD_PADDING_TOP,
-                    CARD_PADDING_BOTTOM,
-                )).get_clash_drawable(),
-                card3.play(get_slot_rect(
-                    3,
-                    (CARD_WIDTH, CARD_HEIGHT),
-                    NUM_SLOTS,
-                    false,
-                    CARD_PADDING_TOP,
-                    CARD_PADDING_BOTTOM,
-                )).get_clash_drawable(),
-                card4.play(get_slot_rect(
-                    4,
-                    (CARD_WIDTH, CARD_HEIGHT),
-                    NUM_SLOTS,
-                    false,
-                    CARD_PADDING_TOP,
-                    CARD_PADDING_BOTTOM,
-                )).get_clash_drawable(),
+                card1
+                    .play(get_slot_rect(
+                        1,
+                        (CARD_WIDTH, CARD_HEIGHT),
+                        NUM_SLOTS,
+                        false,
+                        CARD_PADDING_TOP,
+                        CARD_PADDING_BOTTOM,
+                    ))
+                    .get_clash_drawable(),
+                card2
+                    .play(get_slot_rect(
+                        2,
+                        (CARD_WIDTH, CARD_HEIGHT),
+                        NUM_SLOTS,
+                        false,
+                        CARD_PADDING_TOP,
+                        CARD_PADDING_BOTTOM,
+                    ))
+                    .get_clash_drawable(),
+                card3
+                    .play(get_slot_rect(
+                        3,
+                        (CARD_WIDTH, CARD_HEIGHT),
+                        NUM_SLOTS,
+                        false,
+                        CARD_PADDING_TOP,
+                        CARD_PADDING_BOTTOM,
+                    ))
+                    .get_clash_drawable(),
+                card4
+                    .play(get_slot_rect(
+                        4,
+                        (CARD_WIDTH, CARD_HEIGHT),
+                        NUM_SLOTS,
+                        false,
+                        CARD_PADDING_TOP,
+                        CARD_PADDING_BOTTOM,
+                    ))
+                    .get_clash_drawable(),
             ];
-            
-            // dbg!(played_card1.get_clash_drawable());
-            // dbg!(&cards[0]);
 
+
+            let p1_mana = (p1_last_played_t.elapsed().as_secs()).to_string();
+            let p2_mana = (p2_last_played_t.elapsed().as_secs()).to_string();
+
+            let mut mana_drawables = vec![
+                Drawable::Text(
+                    Rect {
+                        x: 100,
+                        y: HEIGHT / 2 + 170,
+                        w: 200,
+                        h: 80,
+                    },
+                    format!("Mana: {}",p1_mana).to_string(),
+                    FontFamily::GameTitle,
+                    12.0,
+                ),
+                Drawable::Text(
+                    Rect {
+                        x: WIDTH - 300,
+                        y: HEIGHT / 2 + 170,
+                        w: 200,
+                        h: 80,
+                    },
+                    format!("Mana: {}",p2_mana),
+                    FontFamily::GameTitle,
+                    12.0,
+                ),
+            ];
 
             state.bg_color = BACKGROUND_COLOR;
             let mut p1_unit_drawables = vec![];
@@ -468,7 +547,6 @@ fn main() {
                     } else {
                         tower2_hp -= tower_time.tower;
                     }
-                    
 
                     p1_unit_drawables.push(unit.assign_new_time(tower_time.time));
                     // dbg!(tower2_hp);
@@ -505,6 +583,8 @@ fn main() {
             for unit in p2_unit_drawables.iter() {
                 state.drawables.push(unit.played_card.get_drawable_rect(c2));
             }
+
+            state.drawables.append(&mut mana_drawables);
 
             let mut health_bar_1 = generate_health_bar(tower1_hp, 1);
             state.drawables.append(&mut health_bar_1);
