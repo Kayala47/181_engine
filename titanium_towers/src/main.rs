@@ -217,7 +217,7 @@ fn main() {
                     },
                     result_string.to_string(),
                     FontFamily::GameTitle,
-                    20.0,
+                    100.0,
                 );
                 state.drawables.push(result_text);
                 draw(&mut state);
@@ -233,7 +233,7 @@ fn main() {
                     },
                     result_string.to_string(),
                     FontFamily::GameTitle,
-                    12.0,
+                    100.0,
                 );
                 state.drawables.push(result_text);
                 draw(&mut state);
@@ -514,7 +514,7 @@ fn main() {
                     },
                     format!("Mana: {}",p1_mana).to_string(),
                     FontFamily::GameTitle,
-                    12.0,
+                    40.0,
                 ),
                 Drawable::Text(
                     Rect {
@@ -525,7 +525,7 @@ fn main() {
                     },
                     format!("Mana: {}",p2_mana),
                     FontFamily::GameTitle,
-                    12.0,
+                    40.0,
                 ),
             ];
 
