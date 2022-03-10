@@ -18,6 +18,7 @@ use std::cmp::{max, min};
 use std::fs::File;
 use std::io::Read;
 use std::num::Wrapping;
+use std::rc::Rc;
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer, TypedBufferAccess};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, SubpassContents};
@@ -42,7 +43,7 @@ use vulkano::sync::{self, FlushError, GpuFuture};
 use vulkano::Version;
 use vulkano_win::VkSurfaceBuild;
 pub use winit::event::{Event, VirtualKeyCode, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+pub use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{Window, WindowBuilder};
 
 // We'll make our Color type an RGBA8888 pixel.
@@ -50,10 +51,11 @@ pub type Color = (u8, u8, u8, u8);
 pub type FbCoords = (usize, usize);
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
-const CARD_SIZE: (usize, usize) = (30, 40);
-const CARD_COLOR: (u8, u8, u8, u8) = (0, 0, 0, 255);
 const FONT_SIZE: f32 = 4.0;
-const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const CARD_COLOR: Color = (0,0,0,255);
+const FONT_DATA_ROBOTO: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA_CARTER: &[u8] = include_bytes!("../../resources/fonts/CarterOne-Regular.ttf") as &[u8];
+
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -63,19 +65,21 @@ struct Vertex {
 vulkano::impl_vertex!(Vertex, position, uv);
 
 #[allow(non_snake_case)]
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Card {
-    name: String,
-    playCost: usize,
-    health: usize,
-    defense: usize,
-    passiveCost: usize,
-    specialCost: usize,
-    specialTag: String,
-    special: String, //should be a function somehow
-    attack: usize,
-    attackTag: String,
-    specialAttribute: String,
+    pub name: String,
+    pub playCost: usize,
+    pub health: usize,
+    pub defense: usize,
+    pub passiveCost: usize,
+    pub specialCost: usize,
+    pub specialTag: String,
+    pub special: String, //should be a function somehow
+    pub attack: usize,
+    pub attackTag: String,
+    pub specialAttribute: String,
+    pub speed: usize,
+    pub attackSpeed: u64, // lower = better, in milliseconds
 }
 
 impl Drop for Card {
@@ -122,6 +126,24 @@ impl Card {
         )
     }
 
+    pub fn get_clash_description(&self) -> String {
+        let name = &self.name;
+
+        let stats = format!(
+            "HP:{} | Cost: {} \n",
+            self.health, self.specialCost
+        );
+
+        let attack_block = format!("ATK: {} ATK Spd: {}", self.attack, self.attackSpeed);
+
+        let mov_block = format!("MOV Spd: {}", self.speed);
+
+        format!(
+            "{} \n \n {}  \n\n {} \n \n {}",
+            name, stats, attack_block, mov_block
+        )
+    }
+
     pub fn play(&self, r: Rect) -> PlayedCard {
         PlayedCard {
             card: self.clone(),
@@ -130,9 +152,58 @@ impl Card {
     }
 }
 
+pub struct Unit {
+    pub played_card: PlayedCard,
+    pub t: std::time::Instant,
+    pub hp: usize,
+}
+
+#[derive(Debug)]
 pub struct PlayedCard {
-    card: Card,
-    rect: Rect,
+    pub card: Card,
+    pub rect: Rect,
+}
+
+impl Unit {
+    pub fn get_time(&self) -> std::time::Instant {
+        return self.t;
+    }
+
+    pub fn get_unit(&self) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(0),
+            t: self.get_time(),
+            hp: self.hp,
+        }
+    }
+
+    pub fn get_rect_x(&self) -> usize {
+        return self.played_card.rect.x;
+    }
+
+    pub fn move_unit(&self, s: usize) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(s),
+            t: self.get_time(),
+            hp: self.hp,
+        }
+    }
+
+    pub fn move_unit_back(&self, s: usize) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc_back(s),
+            t: self.get_time(),
+            hp: self.hp,
+        }
+    }
+
+    pub fn assign_new_time(&self, time: std::time::Instant) -> Unit {
+        Unit {
+            played_card: self.played_card.move_pc(0),
+            t: time,
+            hp: self.hp,
+        }
+    }
 }
 
 impl PlayedCard {
@@ -143,6 +214,38 @@ impl PlayedCard {
             CARD_COLOR,
             Some(DraggableSnapType::Card(true, false)),
         )
+    }
+
+    pub fn get_clash_drawable(&self) -> Drawable {
+        Drawable::Text(self.rect, self.card.get_clash_description(), FontFamily::CardTitle, 20.0)
+    }
+    pub fn get_drawable_rect(&self, c: Color) -> Drawable {
+        Drawable::Rectangle(self.rect, c, Some(DraggableSnapType::Card(false, false)))
+    }
+
+    pub fn move_pc(&self, s: usize) -> PlayedCard {
+        PlayedCard {
+            card: self.card.clone(),
+            rect: move_unit(self.rect.clone(), s),
+        }
+    }
+
+    pub fn move_pc_back(&self, s: usize) -> PlayedCard {
+        PlayedCard {
+            card: self.card.clone(),
+            rect: move_back(self.rect.clone(), s),
+        }
+    }
+
+    pub fn play_unit(self, t: std::time::Instant, hp: usize, pos: Rect) -> Unit {
+        Unit {
+            played_card: PlayedCard {
+                card: self.card,
+                rect: pos,
+            },
+            t: t,
+            hp: hp,
+        }
     }
 }
 
@@ -219,6 +322,8 @@ pub fn load_cards_from_file(file_path: &str) -> Deck {
 pub struct State {
     pub fb2d: Vec<(u8, u8, u8, u8)>,
     pub drawables: Vec<Drawable>,
+    pub p1_units: Vec<Unit>,
+    pub p2_units: Vec<Unit>,
     pub bg_color: Color,
     previous_frame_end: std::option::Option<std::boxed::Box<dyn vulkano::sync::GpuFuture>>,
     recreate_swapchain: bool,
@@ -240,8 +345,8 @@ pub struct State {
     device: Arc<vulkano::device::Device>,
     set: std::sync::Arc<vulkano::descriptor_set::PersistentDescriptorSet>,
     vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>>,
-    window_width: f64,
-    window_height: f64,
+    pub window_width: f64,
+    pub window_height: f64,
     pub left_mouse_down: bool,
     pub prev_left_mouse_down: bool,
     pub mouse_coords: FbCoords,
@@ -249,7 +354,8 @@ pub struct State {
     pub initial_mouse_down_coords: Option<FbCoords>,
     pub drag_item_id: Option<usize>,
     pub drag_item_initial_coords: Option<FbCoords>,
-    pub font: fontdue::Font,
+    pub card_body_font: Font,
+    pub game_title_font: Font
 }
 
 fn coord_shift(initial: FbCoords, shifter: (i32, i32)) -> FbCoords {
@@ -278,6 +384,44 @@ pub fn calculate_deck_position(
         (num_slots + 2) * spacer_width + num_slots * card_width,
         HEIGHT - card_height - card_padding_bottom,
     )
+}
+
+pub fn calculate_slot_x(slot_num: usize, card_size: (usize, usize), num_slots: usize) -> usize {
+    let (card_width, _) = card_size;
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots);
+    slot_num * spacer_width + (slot_num - 1) * card_width
+}
+
+pub fn calculate_slot_y(
+    is_top: bool,
+    card_padding_bottom: usize,
+    card_padding_top: usize,
+    card_size: (usize, usize),
+) -> usize {
+    if is_top {
+        card_padding_top
+    } else {
+        HEIGHT - card_padding_bottom - card_size.1
+    }
+}
+
+pub fn get_slot_rect(
+    slot_num: usize,
+    card_size: (usize, usize),
+    num_slots: usize,
+    is_top: bool,
+    card_padding_top: usize,
+    card_padding_bottom: usize,
+) -> Rect {
+    let slot_x = calculate_slot_x(slot_num, card_size, num_slots);
+    let slot_y = calculate_slot_y(is_top, card_padding_bottom, card_padding_top, card_size);
+    let (card_width, card_height) = card_size;
+    Rect {
+        x: slot_x,
+        y: slot_y,
+        w: card_width,
+        h: card_height,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -339,6 +483,7 @@ pub fn generate_deck_slots(
     deck_slot_background_color: Color,
     slot_border_color: Color,
     spacer_background_color: Color,
+    is_top: bool
 ) -> Vec<Drawable> {
     let (card_width, card_height) = card_size;
     assert!(card_width * (num_slots + 1) < WIDTH);
@@ -367,59 +512,72 @@ pub fn generate_deck_slots(
         None,
     );
 
-    let mut slot_drawables: Vec<Drawable> = vec![top_container, bottom_container];
-    let card_y = HEIGHT - card_height - (card_padding_bottom);
+    let mut slot_drawables: Vec<Drawable> = vec![bottom_container];
+    if is_top { slot_drawables.push(top_container) };
+    let card_y = calculate_slot_y(false, card_padding_bottom, card_padding_top, card_size);
 
     (1..num_slots + 1).for_each(|slot| {
         let card_x = slot * spacer_width + (slot - 1) * card_width;
         let top_card_slot_background = Drawable::Rectangle(
-            Rect {
-                x: card_x,
-                y: card_padding_top,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(
+                slot,
+                card_size,
+                num_slots,
+                true,
+                card_padding_top,
+                card_padding_bottom,
+            ),
             slot_background_color,
             None,
         );
         let top_card_slot_frame = Drawable::RectOutlined(
-            Rect {
-                x: card_x,
-                y: card_padding_bottom,
-                w: card_width,
-                h: card_height,
-            },
-            (255, 0, 0, 0),
+            get_slot_rect(
+                slot,
+                card_size,
+                num_slots,
+                true,
+                card_padding_top,
+                card_padding_bottom,
+            ),
+            slot_border_color,
             Some(DraggableSnapType::Card(false, true)),
         );
 
         let bottom_card_slot_background = Drawable::Rectangle(
-            Rect {
-                x: card_x,
-                y: card_y,
-                w: card_width,
-                h: card_height,
-            },
+            get_slot_rect(
+                slot,
+                card_size,
+                num_slots,
+                false,
+                card_padding_top,
+                card_padding_bottom,
+            ),
             slot_background_color,
             None,
         );
         let bottom_card_slot_frame = Drawable::RectOutlined(
-            Rect {
-                x: card_x,
-                y: card_y,
-                w: card_width,
-                h: card_height,
-            },
-            (255, 0, 0, 0),
+            get_slot_rect(
+                slot,
+                card_size,
+                num_slots,
+                false,
+                card_padding_top,
+                card_padding_bottom,
+            ),
+            slot_border_color,
+
             Some(DraggableSnapType::Card(false, true)),
         );
-        slot_drawables.push(top_card_slot_background);
-        slot_drawables.push(top_card_slot_frame);
+
+        if is_top {
+            slot_drawables.push(top_card_slot_background);
+            slot_drawables.push(top_card_slot_frame);
+        }
         slot_drawables.push(bottom_card_slot_background);
         slot_drawables.push(bottom_card_slot_frame);
     });
 
-    let deck_slot_x = (num_slots + 2) * spacer_width + num_slots * card_width;
+    let deck_slot_x = calculate_deck_position(card_size, card_padding_bottom, num_slots).0;
     let top_deck_slot_background = Drawable::Rectangle(
         Rect {
             x: deck_slot_x,
@@ -460,8 +618,11 @@ pub fn generate_deck_slots(
         slot_border_color,
         Some(DraggableSnapType::Card(false, true)),
     );
-    slot_drawables.push(top_deck_slot_background);
-    slot_drawables.push(top_deck_slot_frame);
+
+    if is_top {
+        slot_drawables.push(top_deck_slot_background);
+        slot_drawables.push(top_deck_slot_frame);
+    }
     slot_drawables.push(bottom_deck_slot_background);
     slot_drawables.push(bottom_deck_slot_frame);
     slot_drawables
@@ -513,7 +674,43 @@ pub fn render_character(
     (metrics.width, metrics.height)
 }
 
-pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
+    //TODO: I would ideally like it to be able to decide it's own size based on the space
+    //it has to fill
+
+    let mut x = r.x;
+    let mut y = r.y;
+    let hor_lim = r.x + r.w;
+    let ver_lim = r.y + r.h;
+    let mut avg_space = 0;
+
+    for word in s.split_whitespace() {
+        for c in word.chars() {
+            let (new_w, new_h) = render_character(c, fb, x, y, size, font);
+            avg_space = new_w;
+
+            x += new_w;
+
+            if c == '\n' {
+                y += avg_space;
+            }
+
+            if x >= hor_lim {
+                x = r.x;
+                y += new_h;
+            }
+
+            if y >= ver_lim {
+                //stop drawing - sucks to suck
+                return;
+            }
+        }
+
+        x += avg_space;
+    }
+}
+
+pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, font: &Font, size: f32) {
     let fonts = &[font]; //need to make a list
 
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -661,7 +858,7 @@ pub fn check_and_handle_drag(state: &mut State) {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct Rect {
     pub x: usize,
     pub y: usize,
@@ -670,16 +867,23 @@ pub struct Rect {
 }
 
 // Two fields, one for whether it can snap to one like it, and whether one like it can snap to it
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub enum DraggableSnapType {
     Card(bool, bool),
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum FontFamily {
+    CardBody,
+    CardTitle,
+    GameTitle
+}
+
+#[derive(Clone, Debug)]
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
-    Text(Rect, String, f32, Option<DraggableSnapType>),
+    Text(Rect, String, FontFamily, f32),
     PlayedCard(Rect, String, Color, Option<DraggableSnapType>),
 }
 
@@ -688,7 +892,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => *rect,
             Drawable::RectOutlined(rect, _, _) => *rect,
-            &Drawable::Text(rect, _, _, _) => rect,
+            Drawable::Text(rect, _, _, _) => *rect,
             Drawable::PlayedCard(rect, _, _, _) => *rect,
         }
     }
@@ -782,7 +986,7 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
-            &Drawable::Text(_, _, _, drag_type) => drag_type,
+            Drawable::Text(_, _,_, _) => None,
             Drawable::PlayedCard(_, _, _, drag_type) => *drag_type,
         }
     }
@@ -826,12 +1030,16 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(&mut state.fb2d, r, c);
             }
-            Drawable::Text(r, s, size, _) => {
-                draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
+            Drawable::Text(r, s, family, size) => {
+                match family {
+                    FontFamily::CardBody => draw_layout_text(&mut state.fb2d, s, r, &state.card_body_font, size),
+                    FontFamily::CardTitle => draw_layout_text(&mut state.fb2d, s, r, &state.game_title_font, size),
+                    FontFamily::GameTitle => draw_layout_text(&mut state.fb2d, s, r, &state.game_title_font, size),
+                }
             }
             Drawable::PlayedCard(r, s, c, _) => {
                 rectangle(&mut state.fb2d, r, c);
-                draw_layout_text(&mut state.fb2d, s, r, 10.0, &state.font); //size doesn't matter anyway.
+                draw_layout_text(&mut state.fb2d, s, r, &state.card_body_font, 10.0); //size doesn't matter anyway.
             }
         }
     });
@@ -958,6 +1166,26 @@ fn window_size_dependent_setup(
     )
 }
 
+pub fn move_unit(pos: Rect, speed: usize) -> Rect {
+    let new_pos = Rect {
+        x: pos.x + speed,
+        y: pos.y,
+        w: pos.w,
+        h: pos.h,
+    };
+    return new_pos;
+}
+
+pub fn move_back(pos: Rect, speed: usize) -> Rect {
+    let new_pos = Rect {
+        x: pos.x - speed,
+        y: pos.y,
+        w: pos.w,
+        h: pos.h,
+    };
+    return new_pos;
+}
+
 pub fn setup() -> State {
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, Version::V1_1, &required_extensions, None).unwrap();
@@ -1011,12 +1239,10 @@ pub fn setup() -> State {
     };
 
     // load in the font used for text rendering
-    let font_settings: fontdue::FontSettings = fontdue::FontSettings {
-        scale: FONT_SIZE,
-        ..fontdue::FontSettings::default()
-    };
-    let roboto_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA, font_settings).unwrap();
+    let font_settings: fontdue::FontSettings = fontdue::FontSettings::default();
 
+    let card_body_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_ROBOTO, font_settings).unwrap();
+    let game_title_font: fontdue::Font = fontdue::Font::from_bytes(FONT_DATA_CARTER, font_settings).unwrap();
     // We now create a buffer that will store the shape of our triangl
 
     let vertex_buffer = CpuAccessibleBuffer::from_iter(
@@ -1185,6 +1411,8 @@ pub fn setup() -> State {
     State {
         fb2d,
         drawables: vec![],
+        p1_units: vec![],
+        p2_units: vec![],
         bg_color: (255, 255, 255, 255),
         previous_frame_end,
         recreate_swapchain,
@@ -1215,7 +1443,8 @@ pub fn setup() -> State {
         initial_mouse_down_coords: None,
         drag_item_id: None,
         drag_item_initial_coords: None,
-        font: roboto_font,
+        card_body_font,
+        game_title_font,
     }
 }
 
@@ -1378,7 +1607,6 @@ pub fn handle_winit_event(
                 winit::event::ElementState::Pressed => {
                     // VirtualKeycode is an enum with a defined representation
                     state.now_keys[keycode as usize] = true;
-                    println!("key pressed");
                 }
                 winit::event::ElementState::Released => {
                     state.now_keys[keycode as usize] = false;
@@ -1401,26 +1629,6 @@ pub fn handle_winit_event(
                 (cursor_y * HEIGHT as f64) as usize,
             );
         }
-        // closest thing to working for Windows :(
-        // Event::DeviceEvent { event, .. } => match event {
-        //     winit::event::DeviceEvent::Button {
-        //         button: _,
-        //         state: state_of_this,
-        //     } => {
-        //         state.left_mouse_down = state_of_this == winit::event::ElementState::Pressed;
-        //     }
-        //     winit::event::DeviceEvent::MouseMotion { delta } => {
-        //         state.prev_mouse_coords = state.mouse_coords;
-        //         let (delta_x, delta_y) = delta;
-
-        //         dbg!(delta);
-        //         state.mouse_coords = (
-        //             (state.mouse_coords.0 as f64 + delta_x) as usize,
-        //             (state.mouse_coords.1 as f64 + delta_y) as usize,
-        //         );
-        //     }
-        //     _ => {}
-        // },
         Event::WindowEvent {
             event:
                 WindowEvent::MouseInput {
@@ -1435,7 +1643,6 @@ pub fn handle_winit_event(
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
         }
-
         _ => {}
     }
 }

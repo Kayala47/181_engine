@@ -1,7 +1,7 @@
 use engine::{
     check_and_handle_drag, clear, draw, draw_layout_text, generate_battle_slots,
     generate_deck_slots, handle_mana, handle_winit_event, load_cards_from_file, render_character,
-    setup, Color, DraggableSnapType, Drawable, Event, PlayedCard, Rect, VirtualKeyCode,
+    setup, Color, DraggableSnapType, Drawable, Event, PlayedCard, Rect, VirtualKeyCode, FontFamily,
     WindowEvent,
 };
 use std::cmp::max;
@@ -58,6 +58,7 @@ fn main() {
         (0, 255, 0, 255),
         (255, 255, 255, 255),
         (220, 220, 250, 255),
+        true
     );
 
     let mut battle_slots = generate_battle_slots(
@@ -127,13 +128,13 @@ fn main() {
     p1_m_idx = state.drawables.len();
     state
         .drawables
-        .push(Drawable::Text(p1_mana_r, p1_mana.to_string(), 10.0, None));
+        .push(Drawable::Text(p1_mana_r, p1_mana.to_string(), FontFamily::GameTitle, 10.0));
 
     dbg!(state.drawables.len());
     p2_m_idx = state.drawables.len();
     state
         .drawables
-        .push(Drawable::Text(p2_mana_r, p2_mana.to_string(), 10.0, None));
+        .push(Drawable::Text(p2_mana_r, p2_mana.to_string(), FontFamily::GameTitle, 10.0));
 
     dbg!(state.drawables.len());
 
@@ -147,16 +148,16 @@ fn main() {
         state.drawables.push(Drawable::Text(
             p1_mana_r,
             format!("Player 1 has {} mana", p1_mana),
-            40.0,
-            None,
+            FontFamily::GameTitle,
+            40.0
         ));
 
         p2_m_idx = state.drawables.len();
         state.drawables.push(Drawable::Text(
             p2_mana_r,
             format!("Player 2 has {} mana", p2_mana),
-            40.0,
-            None,
+            FontFamily::GameTitle,
+            40.0
         ));
 
         match event {
