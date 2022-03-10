@@ -51,9 +51,9 @@ pub type FbCoords = (usize, usize);
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 const CARD_SIZE: (usize, usize) = (30, 40);
+const CARD_COLOR: (u8, u8, u8, u8) = (0, 0, 0, 255);
 const FONT_SIZE: f32 = 4.0;
-const FONT_DATA: &[u8] =
-    include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
+const FONT_DATA: &[u8] = include_bytes!("../../resources/fonts/RobotoMono-Regular.ttf") as &[u8];
 
 #[derive(Default, Debug, Clone)]
 struct Vertex {
@@ -137,7 +137,12 @@ pub struct PlayedCard {
 
 impl PlayedCard {
     pub fn get_drawable(&self) -> Drawable {
-        Drawable::Text(self.rect, self.card.get_description(), 10.0)
+        Drawable::PlayedCard(
+            self.rect,
+            self.card.get_description(),
+            CARD_COLOR,
+            Some(DraggableSnapType::Card(true, false)),
+        )
     }
 }
 
@@ -276,6 +281,55 @@ pub fn calculate_deck_position(
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn generate_battle_slots(
+    card_size: (usize, usize),
+    card_padding_bottom: usize,
+    card_padding_top: usize,
+    num_slots: usize,
+    slot_border_color: Color,
+) -> Vec<Drawable> {
+    let mut drawables: Vec<Drawable> = vec![];
+
+    let spacer_width = calculate_card_spacer_width(card_size, num_slots);
+    let (card_width, card_height) = card_size;
+    assert!(card_width * (num_slots + 1) < WIDTH);
+
+    let y = card_height + card_padding_top + card_padding_bottom;
+
+    let bottom_y = y + (card_height * 2) + (card_padding_bottom * 2) + card_padding_bottom;
+
+    (1..num_slots + 1).for_each(|slot| {
+        let card_x = slot * spacer_width + (slot - 1) * card_width;
+        let top_card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y,
+                w: card_width,
+                h: card_height,
+            },
+            slot_border_color,
+            Some(DraggableSnapType::Card(false, true)),
+        );
+
+        let bottom_card_slot_frame = Drawable::RectOutlined(
+            Rect {
+                x: card_x,
+                y: bottom_y,
+                w: card_width,
+                h: card_height,
+            },
+            slot_border_color,
+            Some(DraggableSnapType::Card(false, true)),
+        );
+
+        drawables.push(top_card_slot_frame);
+        drawables.push(bottom_card_slot_frame);
+    });
+
+    drawables
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn generate_deck_slots(
     card_size: (usize, usize),
     card_padding_bottom: usize,
@@ -290,6 +344,7 @@ pub fn generate_deck_slots(
     assert!(card_width * (num_slots + 1) < WIDTH);
 
     let spacer_width = calculate_card_spacer_width(card_size, num_slots); // 3 represents double space between last card and deck, plus space to right of deck
+
     let top_container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -300,7 +355,7 @@ pub fn generate_deck_slots(
         spacer_background_color,
         None,
     );
-    
+
     let bottom_container = Drawable::Rectangle(
         Rect {
             x: 0,
@@ -334,7 +389,7 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            slot_border_color,
+            (255, 0, 0, 0),
             Some(DraggableSnapType::Card(false, true)),
         );
 
@@ -355,7 +410,7 @@ pub fn generate_deck_slots(
                 w: card_width,
                 h: card_height,
             },
-            slot_border_color,
+            (255, 0, 0, 0),
             Some(DraggableSnapType::Card(false, true)),
         );
         slot_drawables.push(top_card_slot_background);
@@ -445,10 +500,10 @@ pub fn render_character(
         for j in (curr_y * WIDTH + x)..(curr_y * WIDTH + x + metrics.width) {
             let pixel = bit_iter.next().unwrap();
 
-            // if pixel.0 == 0 {
-            //     //skip adding the background!
-            //     continue;
-            // }
+            if pixel.0 == 0 {
+                //skip adding the background!
+                continue;
+            }
 
             fb[j] = *pixel;
         }
@@ -456,42 +511,6 @@ pub fn render_character(
 
     //return these for use in text
     (metrics.width, metrics.height)
-}
-
-pub fn draw_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
-    //TODO: I would ideally like it to be able to decide it's own size based on the space
-    //it has to fill
-
-    let mut x = r.x;
-    let mut y = r.y;
-    let hor_lim = r.x + r.w;
-    let ver_lim = r.y + r.h;
-    let mut avg_space = 0;
-
-    for word in s.split_whitespace() {
-        for c in word.chars() {
-            let (new_w, new_h) = render_character(c, fb, x, y, size, font);
-            avg_space = new_w;
-
-            x += new_w;
-
-            if c == '\n' {
-                y += avg_space;
-            }
-
-            if x >= hor_lim {
-                x = r.x;
-                y += new_h;
-            }
-
-            if y >= ver_lim {
-                //stop drawing - sucks to suck
-                return;
-            }
-        }
-
-        x += avg_space;
-    }
 }
 
 pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &Font) {
@@ -528,11 +547,17 @@ pub fn draw_layout_text(fb: &mut [Color], s: String, r: Rect, size: f32, font: &
     for (idx, string) in strings.enumerate() {
         if idx == 0 {
             //Card title should be big
-            layout.append(fonts, &TextStyle::new(string, 20.0, 0));
+
+            if size >= 40.0 {
+                //not a card
+                layout.append(fonts, &TextStyle::new(string, size, 0));
+            } else {
+                layout.append(fonts, &TextStyle::new(string, 16.0, 0));
+            }
         } else {
-            let mut size = 12.0;
+            let mut size = 14.0;
             if subtitle {
-                size = 16.0;
+                size = 18.0;
                 subtitle = !subtitle;
 
                 //should normally be outside this if block
@@ -654,7 +679,8 @@ pub enum DraggableSnapType {
 pub enum Drawable {
     Rectangle(Rect, Color, Option<DraggableSnapType>),
     RectOutlined(Rect, Color, Option<DraggableSnapType>),
-    Text(Rect, String, f32),
+    Text(Rect, String, f32, Option<DraggableSnapType>),
+    PlayedCard(Rect, String, Color, Option<DraggableSnapType>),
 }
 
 impl Drawable {
@@ -662,7 +688,8 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => *rect,
             Drawable::RectOutlined(rect, _, _) => *rect,
-            &Drawable::Text(rect, _, _) => rect,
+            &Drawable::Text(rect, _, _, _) => rect,
+            Drawable::PlayedCard(rect, _, _, _) => *rect,
         }
     }
 
@@ -675,7 +702,10 @@ impl Drawable {
             Drawable::RectOutlined(rect, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
-            &Drawable::Text(rect, _, _) => {
+            Drawable::Text(rect, _, _, _) => {
+                (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
+            }
+            Drawable::PlayedCard(rect, _, _, _) => {
                 (x >= rect.x && x <= rect.x + rect.w) && (y >= rect.y && y <= rect.y + rect.h)
             }
         }
@@ -685,9 +715,23 @@ impl Drawable {
         match self {
             Drawable::Rectangle(rect, _, _) => (rect.x, rect.y),
             Drawable::RectOutlined(rect, _, _) => (rect.x, rect.y),
-            &Drawable::Text(rect, _, _) => (rect.x, rect.y),
+            Drawable::Text(rect, _, _, _) => (rect.x, rect.y),
+            Drawable::PlayedCard(rect, _, _, _) => (rect.x, rect.y),
         }
     }
+
+    // pub fn change_text(self: &mut Drawable, new_s: String) {
+    //     match self {
+    //         Drawable::Text(_, mut s, _, _) => {
+    //             s = new_s;
+    //         }
+    //         Drawable::PlayedCard(_, mut s, _, _) => {
+    //             s = new_s;
+    //         }
+    //         Drawable::Rectangle(_, _, _) => {}
+    //         Drawable::RectOutlined(_, _, _) => {}
+    //     }
+    // }
 
     pub fn shift(self: &mut Drawable, amount: (i32, i32)) {
         let (x, y) = amount;
@@ -701,7 +745,11 @@ impl Drawable {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
-            &mut Drawable::Text(mut rect, _, _) => {
+            &mut Drawable::Text(mut rect, _, _, _) => {
+                rect.x = max(rect.x as i32 + x, 0) as usize;
+                rect.y = max(rect.y as i32 + y, 0) as usize;
+            }
+            Drawable::PlayedCard(rect, _, _, _) => {
                 rect.x = max(rect.x as i32 + x, 0) as usize;
                 rect.y = max(rect.y as i32 + y, 0) as usize;
             }
@@ -719,7 +767,11 @@ impl Drawable {
                 rect.x = x;
                 rect.y = y;
             }
-            Drawable::Text(rect, _, _) => {
+            Drawable::Text(rect, _, _, _) => {
+                rect.x = x;
+                rect.y = y;
+            }
+            Drawable::PlayedCard(rect, _, _, _) => {
                 rect.x = x;
                 rect.y = y;
             }
@@ -730,7 +782,8 @@ impl Drawable {
         match self {
             Drawable::Rectangle(_, _, drag_type) => *drag_type,
             Drawable::RectOutlined(_, _, drag_type) => *drag_type,
-            &Drawable::Text(_, _, _) => None,
+            &Drawable::Text(_, _, _, drag_type) => drag_type,
+            Drawable::PlayedCard(_, _, _, drag_type) => *drag_type,
         }
     }
 
@@ -773,8 +826,12 @@ fn draw_objects(state: &mut State, drawables: Vec<Drawable>) {
             Drawable::RectOutlined(r, c, _) => {
                 rect_outlined(&mut state.fb2d, r, c);
             }
-            Drawable::Text(r, s, size) => {
+            Drawable::Text(r, s, size, _) => {
                 draw_layout_text(&mut state.fb2d, s, r, size, &state.font);
+            }
+            Drawable::PlayedCard(r, s, c, _) => {
+                rectangle(&mut state.fb2d, r, c);
+                draw_layout_text(&mut state.fb2d, s, r, 10.0, &state.font); //size doesn't matter anyway.
             }
         }
     });
@@ -861,6 +918,19 @@ fn line_bresenham(
     }
 }
 
+pub fn handle_mana(curr_manas: (usize, usize), delta: usize, turn: usize) -> (usize, usize) {
+    let (mut p1_mana, mut p2_mana) = curr_manas;
+
+    if turn % 2 == 0 {
+        // p1
+        p1_mana -= delta;
+    } else {
+        p2_mana -= delta;
+    }
+
+    (p1_mana, p2_mana)
+}
+
 fn window_size_dependent_setup(
     images: &[Arc<SwapchainImage<Window>>],
     render_pass: Arc<RenderPass>,
@@ -871,7 +941,7 @@ fn window_size_dependent_setup(
     let mut window_width = dimensions[0].into();
     let mut window_height = dimensions[1].into();
 
-    println!{"window width: {:?}", window_width};
+    println! {"window width: {:?}", window_width};
     (
         images
             .iter()
@@ -1324,14 +1394,13 @@ pub fn handle_winit_event(
                 },
             window_id: _,
         } => {
-            println!("cursor moved");
             let cursor_x = position.x / state.window_width;
             let cursor_y = position.y / state.window_height;
             state.mouse_coords = (
                 (cursor_x * WIDTH as f64) as usize,
                 (cursor_y * HEIGHT as f64) as usize,
             );
-        },
+        }
         // closest thing to working for Windows :(
         // Event::DeviceEvent { event, .. } => match event {
         //     winit::event::DeviceEvent::Button {
@@ -1352,7 +1421,6 @@ pub fn handle_winit_event(
         //     }
         //     _ => {}
         // },
-
         Event::WindowEvent {
             event:
                 WindowEvent::MouseInput {
@@ -1366,8 +1434,8 @@ pub fn handle_winit_event(
             if button == winit::event::MouseButton::Left {
                 state.left_mouse_down = button_state == winit::event::ElementState::Pressed;
             }
-        },
-        
+        }
+
         _ => {}
     }
 }
