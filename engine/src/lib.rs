@@ -217,7 +217,7 @@ impl PlayedCard {
     }
 
     pub fn get_clash_drawable(&self) -> Drawable {
-        Drawable::Text(self.rect, self.card.get_clash_description(), FontFamily::CardTitle, 10.0)
+        Drawable::Text(self.rect, self.card.get_clash_description(), FontFamily::CardTitle, 20.0)
     }
     pub fn get_drawable_rect(&self, c: Color) -> Drawable {
         Drawable::Rectangle(self.rect, c, Some(DraggableSnapType::Card(false, false)))

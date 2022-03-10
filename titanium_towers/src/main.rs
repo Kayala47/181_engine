@@ -15,7 +15,7 @@ const CARD_PADDING_TOP: usize = 5;
 const CARD_PADDING_BOTTOM: usize = 5;
 const NUM_SLOTS: usize = 4;
 
-const TOWER_START_HP: usize = 10;
+const TOWER_START_HP: usize = 1000;
 
 const BACKGROUND_COLOR: Color = (91, 99, 112, 255);
 
