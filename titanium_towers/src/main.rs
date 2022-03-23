@@ -6,6 +6,7 @@ use engine::{
 use std::time::{Duration, Instant};
 use winit::event_loop::EventLoop;
 
+
 const WIDTH: usize = 1920;
 const HEIGHT: usize = 1080;
 
@@ -128,7 +129,7 @@ fn main() {
     let c2 = (255, 255, 0, 0);
 
     let mut state = setup();
-    let event_loop = EventLoop::new();
+    let event_loop = state.event_loop;
 
     let mut starting_game_objects: Vec<Drawable> = vec![];
 
